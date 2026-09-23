@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cobros">
+<title>Cobros</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273549; --txt:#e2e8f0; --mute:#94a3b8;
+    --ok:#22c55e; --ok2:#16a34a; --rec:#ef4444; --line:#334155; --acc:#38bdf8;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  body{min-height:100dvh;padding-bottom:84px}
+  button,select,input,textarea{font:inherit;color:inherit}
+  button{background:var(--ok2);border:0;border-radius:10px;padding:.55em .9em;cursor:pointer;font-weight:600}
+  button.sec{background:var(--panel2);font-weight:500}
+  button:disabled{opacity:.5}
+  input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.6em .7em}
+  label{display:block;font-size:.85rem;color:var(--mute);margin:.6em 0 .2em}
+  small{color:var(--mute)}
+
+  /* navegación */
+  header.top{position:sticky;top:0;z-index:5;display:flex;gap:6px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+  header.top button{flex:1;white-space:nowrap;padding:.55em .3em;background:transparent;color:var(--mute);border-radius:8px}
+  header.top button.act{background:var(--panel);color:var(--txt)}
+  body[data-auth="no"] header.top, body[data-auth="no"] #barra-total, body[data-auth="no"] .vista{display:none!important}
+  body:not([data-auth="no"]) #login{display:none}
+  .vista{padding:16px;max-width:760px;margin:0 auto}
+  .vista[hidden]{display:none}
+
+  /* login */
+  #login{min-height:100dvh;display:grid;place-content:center;text-align:center;gap:14px;padding:16px}
+
+  /* dictar */
+  #v-dictar{display:flex;flex-direction:column;align-items:center;gap:18px;padding-top:8vh}
+  #mic{width:180px;height:180px;border-radius:50%;font-size:64px;background:var(--ok2);box-shadow:0 0 0 10px #16a34a33}
+  #mic.rec{background:var(--rec);box-shadow:0 0 0 10px #ef444433;animation:pulso 1.2s infinite}
+  @keyframes pulso{50%{box-shadow:0 0 0 22px #ef444411}}
+  #estado{min-height:1.4em;color:var(--mute);text-align:center}
+  .enlaces{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  #form-texto{width:100%;display:flex;flex-direction:column;gap:8px}
+
+  /* barra total */
+  #barra-total{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--panel);border-top:1px solid var(--line);cursor:pointer}
+  #total-monto{font-size:1.4rem;font-weight:700;color:var(--ok)}
+
+  /* panel */
+  .filtros{display:flex;gap:8px;margin-bottom:12px}
+  .grupo{background:var(--panel);border-radius:14px;margin-bottom:14px;overflow:hidden}
+  .grupo>header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:var(--panel2)}
+  .grupo h3{margin:0;font-size:1.05rem}
+  .der{display:flex;align-items:center;gap:10px}
+  .der strong{font-size:1.15rem;color:var(--ok)}
+  .item,.fila{display:flex;justify-content:space-between;gap:10px;padding:11px 14px;border-top:1px solid var(--line)}
+  .info{min-width:0;display:flex;flex-direction:column;gap:2px}
+  .info span{color:var(--acc)}
+  .item{flex-direction:column;gap:8px}
+  .item .acc{justify-content:flex-end}
+  .item .acc strong{margin-right:auto;font-size:1.1rem}
+  .acc{display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+  .llamar{display:inline-grid;place-content:center;width:38px;height:38px;border-radius:50%;background:var(--acc);text-decoration:none;font-size:18px}
+  .vacio{text-align:center;color:var(--mute);padding:30px 0}
+
+  /* ajustes */
+  .caja{background:var(--panel);border-radius:14px;padding:4px 0 12px;margin-bottom:18px}
+  .caja h2{font-size:1rem;margin:10px 14px}
+  .caja form{padding:4px 14px 0}
+  .fila.arch{opacity:.5}
+  .fila select{width:auto;padding:.3em .5em;margin-top:4px}
+
+  /* tarjeta */
+  dialog{width:min(560px,100vw - 20px);max-height:92dvh;border:0;border-radius:16px;padding:0;background:var(--panel);color:var(--txt)}
+  dialog::backdrop{background:#000a}
+  #form-tarjeta{padding:16px}
+  #form-tarjeta h2{margin:0 0 4px}
+  #transcripcion{font-style:italic;color:var(--mute);font-size:.85rem}
+  .dos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .botones{display:flex;gap:8px;margin-top:16px}
+  .botones .grow{flex:1}
+  #btn-borrar{background:#7f1d1d}
+</style>
+</head>
+<body data-auth="no">
+
+<section id="login">
+  <div style="font-size:64px">💵</div>
+  <h1 style="margin:0">Cobros</h1>
+  <p style="color:var(--mute);margin:0">Honorarios pendientes por hospital</p>
+  <button id="btn-login">Entrar con Google</button>
+</section>
+
+<header class="top">
+  <button data-ir="dictar">🎙 Dictar</button>
+  <button data-ir="panel">📋 Pendientes</button>
+  <button data-ir="ajustes">⚙ Ajustes</button>
+</header>
+
+<!-- 1. DICTAR -->
+<section class="vista" id="v-dictar">
+  <button id="mic" aria-label="Grabar">🎙</button>
+  <div id="estado">Toca para dictar</div>
+  <div class="enlaces">
+    <button class="sec" id="btn-texto">⌨ Escribir</button>
+    <button class="sec" id="btn-manual">✎ Llenar a mano</button>
+  </div>
+  <form id="form-texto" hidden>
+    <textarea name="texto" rows="3" placeholder="Ultrasonido renal a Juanita Pérez en el Quirúrgico del Valle, 1500, ayer, la de la nariz chueca…"></textarea>
+    <button>Interpretar</button>
+  </form>
+</section>
+
+<!-- 2. PANEL -->
+<section class="vista" id="v-panel" hidden>
+  <div class="filtros">
+    <select id="filtro">
+      <option value="pendiente">Pendientes por cobrar</option>
+      <option value="cobrado">Ya cobrados</option>
+    </select>
+  </div>
+  <div id="panel"></div>
+</section>
+
+<!-- 3. AJUSTES -->
+<section class="vista" id="v-ajustes" hidden>
+  <div class="caja">
+    <h2>Hospitales</h2>
+    <div id="lista-hosp"></div>
+    <form id="form-hosp">
+      <label>Nuevo hospital</label>
+      <input name="nombre" placeholder="Hospital Quirúrgico del Valle" required>
+      <label>Otros nombres con que lo dices (separados por coma)</label>
+      <input name="alias" placeholder="Quirúrgico, el del Valle">
+      <label>Quién paga por defecto</label>
+      <select name="cobrador" id="nuevo-hosp-cobrador"></select>
+      <div class="botones"><button class="grow">Agregar hospital</button></div>
+    </form>
+  </div>
+
+  <div class="caja">
+    <h2>Contactos para cobrar</h2>
+    <div id="lista-contactos"></div>
+    <form id="form-contacto">
+      <label>Nuevo contacto</label>
+      <input name="nombre" placeholder="Caja Quirúrgico del Valle / Dr. Ramírez" required>
+      <label>Teléfono</label>
+      <input name="telefono" type="tel" placeholder="686 123 4567  ó  +1 760 555 0100">
+      <div class="botones"><button class="grow">Agregar contacto</button></div>
+    </form>
+  </div>
+
+  <div class="botones"><button class="sec grow" id="btn-salir">Cerrar sesión</button></div>
+</section>
+
+<footer id="barra-total">
+  <div><small>Te deben en total</small><div id="total-monto">$0</div></div>
+  <small id="total-n">0 pendientes</small>
+</footer>
+
+<!-- TARJETA DE CONFIRMACIÓN -->
+<dialog id="tarjeta">
+  <form id="form-tarjeta">
+    <h2 id="tarjeta-titulo">Confirma el estudio</h2>
+    <div id="transcripcion"></div>
+
+    <label>Paciente</label>
+    <input name="paciente" autocomplete="off">
+
+    <label>Estudio</label>
+    <input name="estudio" autocomplete="off">
+
+    <div class="dos">
+      <div><label>Honorarios</label><input name="monto" type="number" inputmode="decimal" min="0" step="1"></div>
+      <div><label>Fecha del estudio</label><input name="fecha" type="date"></div>
+    </div>
+
+    <label>Hospital</label>
+    <select name="hospital"></select>
+    <div id="bloque-hosp-nuevo" hidden>
+      <label>Nombre del nuevo hospital</label>
+      <input name="hospitalNuevo">
+    </div>
+
+    <label>Cobrar a</label>
+    <select name="cobrar"></select>
+    <div id="bloque-cobrar-nuevo" hidden>
+      <div class="dos">
+        <div><label>Nombre</label><input name="cobrarNombre"></div>
+        <div><label>Teléfono</label><input name="cobrarTel" type="tel"></div>
+      </div>
+    </div>
+
+    <label>Nota para acordarte</label>
+    <input name="nota" placeholder="el de la nariz chueca" autocomplete="off">
+
+    <div class="botones">
+      <button type="button" id="btn-borrar" hidden>🗑</button>
+      <button type="button" class="sec" id="btn-cancelar">Cancelar</button>
+      <button class="grow">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
