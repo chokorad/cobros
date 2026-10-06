@@ -1,14 +1,20 @@
-import { firebaseConfig, MODELO, CORREOS_PERMITIDOS, LADA_DEFAULT } from './config.js';
+import { firebaseConfig, MODELO, CORREOS_PERMITIDOS, LADA_DEFAULT, RECAPTCHA_KEY } from './config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp }
   from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js';
 import { getAI, getGenerativeModel, GoogleAIBackend } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js';
 
 // ---------- Firebase
 const app = initializeApp(firebaseConfig);
+// App Check: Firebase lo exige para dejar pasar las llamadas a Gemini.
+if (RECAPTCHA_KEY) {
+  try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_KEY), isTokenAutoRefreshEnabled: true }); }
+  catch (e) { console.error('App Check', e); }
+}
 const auth = getAuth(app);
 const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 const ai = getAI(app, { backend: new GoogleAIBackend() });
@@ -110,7 +116,7 @@ mic.onclick = async () => {
     mic.classList.remove('rec');
     procesar({ audio: new Blob(trozos, { type: grabadora.mimeType || tipo || 'audio/webm' }) });
   };
-  grabadora.start();
+  grabadora.start(250);
   mic.classList.add('rec');
   setEstado('Grabando… toca para terminar');
 };
@@ -122,6 +128,33 @@ $('#form-texto').onsubmit = e => {
   const t = e.target.texto.value.trim();
   if (t) { procesar({ texto: t }); e.target.texto.value = ''; e.target.hidden = true; }
 };
+
+// Gemini no acepta audio/webm (lo que graba Chrome). Convertimos a WAV mono 16 kHz.
+async function aWav(blob) {
+  const buf = await blob.arrayBuffer();
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new Ctx();
+  let audio;
+  try { audio = await ctx.decodeAudioData(buf); } finally { ctx.close?.(); }
+  const RATE = 16000;
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(audio.duration * RATE)), RATE);
+  const src = off.createBufferSource();
+  src.buffer = audio;
+  src.connect(off.destination);
+  src.start();
+  const pcm = (await off.startRendering()).getChannelData(0);
+  const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+  const txt = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+  txt(0, 'RIFF'); out.setUint32(4, 36 + pcm.length * 2, true); txt(8, 'WAVE');
+  txt(12, 'fmt '); out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
+  out.setUint32(24, RATE, true); out.setUint32(28, RATE * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true);
+  txt(36, 'data'); out.setUint32(40, pcm.length * 2, true);
+  for (let i = 0; i < pcm.length; i++) {
+    const s = Math.max(-1, Math.min(1, pcm[i]));
+    out.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([out], { type: 'audio/wav' });
+}
 
 const aBase64 = blob => new Promise((ok, mal) => {
   const r = new FileReader();
@@ -165,16 +198,22 @@ async function procesar({ audio, texto }) {
   mic.disabled = true;
   try {
     const partes = [construirPrompt()];
-    if (audio) partes.push({ inlineData: { data: await aBase64(audio), mimeType: audio.type.split(';')[0] } });
-    else partes.push('Dictado: ' + texto);
+    if (!RECAPTCHA_KEY) throw new Error('Falta RECAPTCHA_KEY en config.js (App Check)');
+    if (audio) {
+      if (audio.size < 1500) throw new Error('No se grabó audio (revisa el permiso del micrófono)');
+      const wav = await aWav(audio);
+      partes.push({ inlineData: { data: await aBase64(wav), mimeType: 'audio/wav' } });
+    } else partes.push('Dictado: ' + texto);
     const r = await modelo.generateContent(partes);
     const d = JSON.parse(r.response.text().replace(/^```(json)?|```$/g, '').trim());
     setEstado('Revisa y guarda');
     abrirTarjeta(d);
   } catch (e) {
     console.error(e);
-    setEstado('No pude interpretarlo, llénalo a mano');
+    const msg = (e && (e.message || e.code)) || String(e);
+    setEstado('Error: ' + msg.slice(0, 220));
     abrirTarjeta({ transcripcion: texto || '' });
+    $('#transcripcion').textContent = '⚠ No se pudo interpretar: ' + msg.slice(0, 300);
   } finally {
     mic.disabled = false;
   }
