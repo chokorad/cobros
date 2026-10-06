@@ -88,6 +88,12 @@
   .botones{display:flex;gap:8px;margin-top:16px}
   .botones .grow{flex:1}
   #btn-borrar{background:#7f1d1d}
+  .fecha-fila{display:flex;gap:8px;align-items:stretch}
+  .fecha-fila input{flex:1;min-width:0}
+  .fecha-fila button{width:48px;font-size:1.3rem;padding:0}
+  .fecha-rapida{display:flex;gap:8px;margin-top:8px}
+  .fecha-rapida button{flex:1}
+  #fecha-texto{display:block;margin-top:4px}
 </style>
 </head>
 <body data-auth="no">
@@ -178,10 +184,21 @@
     <label>Estudio</label>
     <input name="estudio" autocomplete="off">
 
-    <div class="dos">
-      <div><label>Honorarios</label><input name="monto" type="number" inputmode="decimal" min="0" step="1"></div>
-      <div><label>Fecha del estudio</label><input name="fecha" type="date"></div>
+    <label>Honorarios</label>
+    <input name="monto" type="number" inputmode="decimal" min="0" step="1">
+
+    <label>Fecha del estudio</label>
+    <div class="fecha-fila">
+      <button type="button" class="sec" data-dia="-1" aria-label="Un día antes">‹</button>
+      <input name="fecha" type="date">
+      <button type="button" class="sec" data-dia="1" aria-label="Un día después">›</button>
     </div>
+    <div class="fecha-rapida">
+      <button type="button" class="sec" data-fecha="hoy">Hoy</button>
+      <button type="button" class="sec" data-fecha="ayer">Ayer</button>
+      <button type="button" class="sec" data-fecha="antier">Antier</button>
+    </div>
+    <small id="fecha-texto"></small>
 
     <label>Hospital</label>
     <select name="hospital"></select>
