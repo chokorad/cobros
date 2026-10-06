@@ -26,7 +26,11 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dinero = n => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
-const hoyISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const isoLocal = d => { d = new Date(d); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const hoyISO = () => isoLocal(new Date());
+const sumarDias = (iso, n) => { const d = new Date((iso || hoyISO()) + 'T12:00'); d.setDate(d.getDate() + n); return isoLocal(d); };
+// Antes de las 5 a.m. cuenta como el día clínico anterior (lo que dictas de madrugada es de la guardia de ayer).
+const diaClinicoISO = () => new Date().getHours() < 5 ? sumarDias(hoyISO(), -1) : hoyISO();
 const fechaBonita = iso => iso ? new Date(iso + 'T12:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '';
 const porNombre = (a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es');
 const setEstado = t => { $('#estado').textContent = t; };
@@ -169,7 +173,7 @@ function construirPrompt() {
   const cs = [...contactos.values()].map(c => `${c.id} | ${c.nombre}`).join('\n') || '(ninguno todavía)';
   const frecuentes = [...new Set(estudios.map(e => e.estudio).filter(Boolean))].slice(0, 40).join('; ') || '(ninguno todavía)';
   return `Eres el asistente de un radiólogo en Mexicali, México. Del dictado extrae UN registro de honorarios pendientes de cobrar.
-Hoy es ${hoyISO()}. Convierte fechas relativas ("hoy", "ayer", "el lunes", "el 25 de septiembre") a YYYY-MM-DD. Si no se menciona fecha, usa hoy.
+Hoy es ${diaClinicoISO()} (día clínico; si son menos de las 5 a.m. ya se cuenta como el día anterior). Convierte fechas relativas ("hoy", "ayer", "el lunes", "el 25 de septiembre") a YYYY-MM-DD tomando esa fecha como "hoy". Si no se menciona fecha, usa ${diaClinicoISO()}.
 
 Hospitales conocidos (id | nombre | otros nombres):
 ${hs}
@@ -238,7 +242,8 @@ function abrirTarjeta(d, existente) {
   ft.paciente.value = d.paciente || '';
   ft.estudio.value = d.estudio || '';
   ft.monto.value = d.monto ?? '';
-  ft.fecha.value = d.fecha || hoyISO();
+  ft.fecha.value = d.fecha || diaClinicoISO();
+  mostrarFecha();
   ft.nota.value = d.nota || '';
   ft.hospitalNuevo.value = '';
   ft.cobrarNombre.value = '';
@@ -273,6 +278,22 @@ function sincronizarTarjeta() {
   const def = contactos.get(hospitales.get(ft.hospital.value)?.cobradorId);
   ft.cobrar.options[0].textContent = def ? `Cobrador del hospital (${def.nombre})` : 'Cobrador del hospital (sin definir)';
 }
+function mostrarFecha() {
+  const v = ft.fecha.value;
+  const rel = v === hoyISO() ? 'hoy' : v === sumarDias(hoyISO(), -1) ? 'ayer' : v === sumarDias(hoyISO(), -2) ? 'antier' : '';
+  $('#fecha-texto').textContent = v
+    ? new Date(v + 'T12:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + (rel ? ` (${rel})` : '')
+    : '';
+}
+ft.fecha.addEventListener('change', mostrarFecha);
+ft.fecha.addEventListener('input', mostrarFecha);
+ft.addEventListener('click', e => {
+  const b = e.target.closest('button[data-dia], button[data-fecha]');
+  if (!b) return;
+  if (b.dataset.dia) ft.fecha.value = sumarDias(ft.fecha.value, +b.dataset.dia);
+  else ft.fecha.value = sumarDias(hoyISO(), { hoy: 0, ayer: -1, antier: -2 }[b.dataset.fecha]);
+  mostrarFecha();
+});
 ft.hospital.onchange = sincronizarTarjeta;
 ft.cobrar.onchange = sincronizarTarjeta;
 $('#btn-cancelar').onclick = () => dlg.close();
@@ -301,7 +322,7 @@ ft.onsubmit = e => {
     hospitalId,
     cobrarAId,                       // null = usa el cobrador por defecto del hospital
     monto: Number(ft.monto.value) || 0,
-    fecha: ft.fecha.value || hoyISO(),
+    fecha: ft.fecha.value || diaClinicoISO(),
     nota: ft.nota.value.trim()
   };
   if (editando) actualizar('estudios', editando, datos);
