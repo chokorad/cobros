@@ -20,6 +20,10 @@ export const CORREOS_PERMITIDOS = ["mariohquintero@gmail.com"];
 // 3) Modelo de Gemini que interpreta el audio.
 export const MODELO = "gemini-3.5-flash";
 
-// 4) Lada que se antepone a números de 10 dígitos escritos sin "+".
+// 4) Llave de reCAPTCHA Enterprise para App Check (la exige Firebase para usar Gemini).
+//    Consola de Firebase → Security → App Check → tu app web → reCAPTCHA Enterprise.
+export const RECAPTCHA_KEY = "";
+
+// 5) Lada que se antepone a números de 10 dígitos escritos sin "+".
 //    52 = México. Para números de EE.UU. escríbelos con +1.
 export const LADA_DEFAULT = "52";
