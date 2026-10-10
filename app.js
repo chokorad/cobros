@@ -1,6 +1,7 @@
 import { firebaseConfig, MODELO, CORREOS_PERMITIDOS, LADA_DEFAULT, RECAPTCHA_KEY } from './config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut }
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver,
+  GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp }
@@ -15,7 +16,11 @@ if (RECAPTCHA_KEY) {
   try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_KEY), isTokenAutoRefreshEnabled: true }); }
   catch (e) { console.error('App Check', e); }
 }
-const auth = getAuth(app);
+// Sesión guardada en el teléfono hasta que cierres sesión.
+const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+  popupRedirectResolver: browserPopupRedirectResolver
+});
 const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 const ai = getAI(app, { backend: new GoogleAIBackend() });
 const modelo = getGenerativeModel(ai, { model: MODELO, generationConfig: { responseMimeType: 'application/json' } });
@@ -183,17 +188,21 @@ ${cs}
 
 Estudios que ya ha registrado antes: ${frecuentes}
 
+Aseguradoras conocidas: ${aseguradorasConocidas().join(', ')}
+
 Reglas:
 - paciente: el nombre tal como se dijo (completo o parcial), con mayúsculas y acentos correctos.
 - estudio: nombre claro del estudio; si se parece a uno ya registrado, usa esa misma forma.
 - hospital_id: id del hospital conocido que corresponda, tolerando variaciones o errores de pronunciación. Si se menciona un hospital que no está en la lista, hospital_id = null y su nombre en hospital_nuevo.
 - cobrar_a_id: SOLO si se dice explícitamente a quién cobrarle y coincide con un contacto conocido. Si se menciona a alguien que no está en la lista, cobrar_a_id = null y su nombre en cobrar_a_nuevo. Si no se dice a quién cobrar, ambos null.
 - monto: número sin símbolos ("mil quinientos" → 1500).
+- pago: "aseguradora" si se menciona que lo paga una aseguradora, seguro de gastos médicos o póliza; si no, "particular" (ordinario, efectivo, el paciente, el médico o el hospital pagan directo).
+- aseguradora: nombre de la aseguradora si pago = "aseguradora" (usa la forma de la lista si coincide); "" si no.
 - nota: el comentario personal para recordar al paciente, breve y fiel a lo dicho; "" si no hay.
 - transcripcion: lo que se dijo, textual.
 
 Responde SOLO con este JSON:
-{"paciente":string,"estudio":string,"hospital_id":string|null,"hospital_nuevo":string|null,"cobrar_a_id":string|null,"cobrar_a_nuevo":string|null,"monto":number|null,"fecha":"YYYY-MM-DD","nota":string,"transcripcion":string}`;
+{"paciente":string,"estudio":string,"hospital_id":string|null,"hospital_nuevo":string|null,"cobrar_a_id":string|null,"cobrar_a_nuevo":string|null,"monto":number|null,"fecha":"YYYY-MM-DD","pago":"particular"|"aseguradora","aseguradora":string,"nota":string,"transcripcion":string}`;
 }
 
 async function procesar({ audio, texto }) {
@@ -234,7 +243,8 @@ function abrirTarjeta(d, existente) {
   if (existente) {
     d = { paciente: existente.paciente, estudio: existente.estudio, hospital_id: existente.hospitalId,
       cobrar_a_id: existente.cobrarAId, monto: existente.monto, fecha: existente.fecha,
-      nota: existente.nota, transcripcion: existente.transcripcion };
+      nota: existente.nota, transcripcion: existente.transcripcion,
+      pago: existente.pago, aseguradora: existente.aseguradora };
   }
   d = d || {};
   transcripcionActual = d.transcripcion || '';
@@ -245,6 +255,9 @@ function abrirTarjeta(d, existente) {
   ft.fecha.value = d.fecha || diaClinicoISO();
   mostrarFecha();
   ft.nota.value = d.nota || '';
+  ft.aseguradora.value = d.aseguradora || '';
+  $('#lista-aseg').innerHTML = aseguradorasConocidas().map(n => `<option value="${esc(n)}">`).join('');
+  ponerPago(d.pago === 'aseguradora' || d.aseguradora ? 'aseguradora' : 'particular');
   ft.hospitalNuevo.value = '';
   ft.cobrarNombre.value = '';
   ft.cobrarTel.value = '';
@@ -294,6 +307,17 @@ ft.addEventListener('click', e => {
   else ft.fecha.value = sumarDias(hoyISO(), { hoy: 0, ayer: -1, antier: -2 }[b.dataset.fecha]);
   mostrarFecha();
 });
+function ponerPago(p) {
+  ft.pago.value = p;
+  document.querySelectorAll('#seg-pago button').forEach(b => b.classList.toggle('on', b.dataset.pago === p));
+  $('#bloque-aseg').hidden = p !== 'aseguradora';
+}
+$('#seg-pago').onclick = e => {
+  const b = e.target.closest('button[data-pago]');
+  if (!b) return;
+  ponerPago(b.dataset.pago);
+  if (b.dataset.pago === 'aseguradora') ft.aseguradora.focus();
+};
 ft.hospital.onchange = sincronizarTarjeta;
 ft.cobrar.onchange = sincronizarTarjeta;
 $('#btn-cancelar').onclick = () => dlg.close();
@@ -323,13 +347,30 @@ ft.onsubmit = e => {
     cobrarAId,                       // null = usa el cobrador por defecto del hospital
     monto: Number(ft.monto.value) || 0,
     fecha: ft.fecha.value || diaClinicoISO(),
-    nota: ft.nota.value.trim()
+    nota: ft.nota.value.trim(),
+    pago: ft.pago.value === 'aseguradora' ? 'aseguradora' : 'particular',
+    aseguradora: ft.pago.value === 'aseguradora' ? ft.aseguradora.value.trim() : ''
   };
+  if (datos.pago === 'aseguradora' && !datos.aseguradora) { alert('Escribe el nombre de la aseguradora'); return; }
   if (editando) actualizar('estudios', editando, datos);
   else crear('estudios', { ...datos, transcripcion: transcripcionActual, estatus: 'pendiente', cobradoFecha: null, creado: serverTimestamp() });
   dlg.close();
   setEstado('Guardado ✓  Toca para dictar otro');
 };
+
+// ---------- Aseguradoras
+const ASEGURADORAS_BASE = ['GNP', 'AXA', 'MetLife', 'Seguros Monterrey New York Life', 'Mapfre', 'Allianz', 'BUPA', 'Plan Seguro', 'Banorte', 'Inbursa', 'Atlas', 'Zurich', 'SURA'];
+function aseguradorasConocidas() {
+  const usadas = estudios.map(e => (e.aseguradora || '').trim()).filter(Boolean);
+  const vistas = new Map();
+  for (const n of [...usadas, ...ASEGURADORAS_BASE]) {
+    const k = n.toLowerCase();
+    if (!vistas.has(k)) vistas.set(k, n);
+  }
+  return [...vistas.values()];
+}
+const esAseg = e => e.pago === 'aseguradora' || !!e.aseguradora;
+const diasDesde = iso => iso ? Math.max(0, Math.round((new Date(hoyISO() + 'T12:00') - new Date(iso + 'T12:00')) / 864e5)) : 0;
 
 // ---------- 2. Panel
 function renderTotal() {
@@ -343,14 +384,20 @@ const botonLlamar = (tel, nombre) => `<a class="llamar" href="tel:${esc(tel)}" t
 function itemHTML(e) {
   const c = cobradorDe(e);
   const propio = !!e.cobrarAId;
+  const dias = diasDesde(e.fecha);
+  const limite = esAseg(e) ? 30 : 7;
+  const diasTxt = e.estatus === 'pendiente'
+    ? `<span class="dias${dias > limite ? ' tarde' : ''}">${dias === 0 ? 'hoy' : dias === 1 ? 'hace 1 día' : `hace ${dias} días`}</span>`
+    : '';
   const extra = [
     fechaBonita(e.fecha),
+    diasTxt,
     e.nota ? `<i>${esc(e.nota)}</i>` : '',
     propio && c ? `cobrar a ${esc(c.nombre)}` : '',
     e.estatus === 'cobrado' && e.cobradoFecha ? `cobrado ${fechaBonita(e.cobradoFecha)}` : ''
   ].filter(Boolean).join(' · ');
   return `<div class="item">
-    <div class="info"><b>${esc(e.paciente || '—')}</b><span>${esc(e.estudio)}</span><small>${extra}</small></div>
+    <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${extra}</small></div>
     <div class="acc">
       <strong>${dinero(e.monto)}</strong>
       ${propio && c?.telefono ? botonLlamar(c.telefono, c.nombre) : ''}
@@ -364,7 +411,9 @@ function itemHTML(e) {
 
 function renderPanel() {
   const filtro = $('#filtro').value;
+  const fp = $('#filtro-pago').value;
   const lista = estudios.filter(e => e.estatus === filtro)
+    .filter(e => !fp || (fp === 'aseguradora') === esAseg(e))
     .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
   const grupos = new Map();
   for (const e of lista) {
@@ -382,7 +431,10 @@ function renderPanel() {
       <header>
         <div><h3>${esc(h?.nombre || 'Sin hospital')}</h3>
           <small>${arr.length} estudio${arr.length > 1 ? 's' : ''}${def ? ' · cobra ' + esc(def.nombre) : ''}</small></div>
-        <div class="der"><strong>${dinero(total)}</strong>${def?.telefono ? botonLlamar(def.telefono, def.nombre) : ''}</div>
+        <div class="der"><div style="text-align:right"><strong>${dinero(total)}</strong>${(() => {
+          const as = arr.filter(esAseg).reduce((s, e) => s + (+e.monto || 0), 0);
+          return as && as !== total ? `<span class="sub-pago">${dinero(total - as)} part. · ${dinero(as)} aseg.</span>` : '';
+        })()}</div>${def?.telefono ? botonLlamar(def.telefono, def.nombre) : ''}</div>
       </header>
       ${arr.map(itemHTML).join('')}
     </article>`;
@@ -390,6 +442,7 @@ function renderPanel() {
 }
 
 $('#filtro').onchange = renderPanel;
+$('#filtro-pago').onchange = renderPanel;
 $('#panel').onclick = e => {
   const b = e.target.closest('button[data-act]');
   if (!b) return;

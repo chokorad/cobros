@@ -32,8 +32,12 @@
   header.top{position:sticky;top:0;z-index:5;display:flex;gap:6px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
   header.top button{flex:1;white-space:nowrap;padding:.55em .3em;background:transparent;color:var(--mute);border-radius:8px}
   header.top button.act{background:var(--panel);color:var(--txt)}
-  body[data-auth="no"] header.top, body[data-auth="no"] #barra-total, body[data-auth="no"] .vista{display:none!important}
+  body[data-auth="no"] header.top, body[data-auth="no"] #barra-total, body[data-auth="no"] .vista,
+  body[data-auth="cargando"] header.top, body[data-auth="cargando"] #barra-total, body[data-auth="cargando"] .vista{display:none!important}
   body:not([data-auth="no"]) #login{display:none}
+  body:not([data-auth="cargando"]) #cargando{display:none}
+  #cargando{min-height:100dvh;display:grid;place-content:center;justify-items:center;gap:14px;color:var(--mute)}
+  #cargando img{width:96px;height:96px;border-radius:22px}
   .vista{padding:16px;max-width:760px;margin:0 auto}
   .vista[hidden]{display:none}
 
@@ -88,6 +92,14 @@
   .botones{display:flex;gap:8px;margin-top:16px}
   .botones .grow{flex:1}
   #btn-borrar{background:#7f1d1d}
+  .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{flex:1;border-radius:0;background:var(--bg);color:var(--mute);font-weight:500}
+  .seg button.on{background:var(--panel2);color:var(--txt);font-weight:700}
+  .seg button[data-pago="aseguradora"].on{background:#5b21b6;color:#fff}
+  .info .chip,.chip{display:inline-block;font-size:.75rem;padding:1px 8px;border-radius:999px;background:#5b21b6;color:#fff;margin-left:6px;vertical-align:middle}
+  .info .dias{color:var(--mute)}
+  .info .dias.tarde{color:#f59e0b;font-weight:600}
+  .sub-pago{display:block;color:var(--mute);font-size:.8rem}
   .fecha-fila{display:flex;gap:8px;align-items:stretch}
   .fecha-fila input{flex:1;min-width:0}
   .fecha-fila button{width:48px;font-size:1.3rem;padding:0}
@@ -96,7 +108,12 @@
   #fecha-texto{display:block;margin-top:4px}
 </style>
 </head>
-<body data-auth="no">
+<body data-auth="cargando">
+
+<section id="cargando">
+  <img src="icon-192.png" alt="">
+  <div>Abriendo…</div>
+</section>
 
 <section id="login">
   <div style="font-size:64px">💵</div>
@@ -129,8 +146,13 @@
 <section class="vista" id="v-panel" hidden>
   <div class="filtros">
     <select id="filtro">
-      <option value="pendiente">Pendientes por cobrar</option>
-      <option value="cobrado">Ya cobrados</option>
+      <option value="pendiente">Pendientes</option>
+      <option value="cobrado">Cobrados</option>
+    </select>
+    <select id="filtro-pago">
+      <option value="">Todos</option>
+      <option value="particular">Particular</option>
+      <option value="aseguradora">Aseguradoras</option>
     </select>
   </div>
   <div id="panel"></div>
@@ -214,6 +236,18 @@
         <div><label>Nombre</label><input name="cobrarNombre"></div>
         <div><label>Teléfono</label><input name="cobrarTel" type="tel"></div>
       </div>
+    </div>
+
+    <label>Forma de pago</label>
+    <div class="seg" id="seg-pago">
+      <button type="button" data-pago="particular">Particular</button>
+      <button type="button" data-pago="aseguradora">Aseguradora</button>
+    </div>
+    <input type="hidden" name="pago" value="particular">
+    <div id="bloque-aseg" hidden>
+      <label>¿Cuál aseguradora?</label>
+      <input name="aseguradora" list="lista-aseg" placeholder="GNP, AXA, MetLife…" autocomplete="off">
+      <datalist id="lista-aseg"></datalist>
     </div>
 
     <label>Nota para acordarte</label>
