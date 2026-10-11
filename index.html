@@ -32,6 +32,9 @@
   header.top{position:sticky;top:0;z-index:5;display:flex;gap:6px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
   header.top button{flex:1;white-space:nowrap;padding:.55em .3em;background:transparent;color:var(--mute);border-radius:8px}
   header.top button.act{background:var(--panel);color:var(--txt)}
+  header.top{gap:4px;padding:10px 10px}
+  header.top button{font-size:.9rem}
+  header.top button.solo-icono{flex:0 0 44px}
   body[data-auth="no"] header.top, body[data-auth="no"] #barra-total, body[data-auth="no"] .vista,
   body[data-auth="cargando"] header.top, body[data-auth="cargando"] #barra-total, body[data-auth="cargando"] .vista{display:none!important}
   body:not([data-auth="no"]) #login{display:none}
@@ -66,6 +69,8 @@
   .der{display:flex;align-items:center;gap:10px}
   .der strong{font-size:1.15rem;color:var(--ok)}
   .item,.fila{display:flex;justify-content:space-between;gap:10px;padding:11px 14px;border-top:1px solid var(--line)}
+  .item{border-left:5px solid var(--dia, transparent);padding-left:11px}
+  .info .dia-tag{font-weight:700;color:var(--txt)}
   .info{min-width:0;display:flex;flex-direction:column;gap:2px}
   .info span{color:var(--acc)}
   .item{flex-direction:column;gap:8px}
@@ -92,6 +97,23 @@
   .botones{display:flex;gap:8px;margin-top:16px}
   .botones .grow{flex:1}
   #btn-borrar{background:#7f1d1d}
+  /* producción */
+  #v-produccion .filtros .seg{flex:1.6}
+  #v-produccion .filtros select{flex:1;min-width:0}
+  #v-produccion .seg button{padding:.55em .4em}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .kpi{background:var(--panel);border-radius:14px;padding:12px 14px}
+  .kpi small{display:block}
+  .kpi b{display:block;font-size:1.35rem;margin-top:2px}
+  .kpi span{font-size:.8rem;color:var(--mute)}
+  .grafica{padding:12px 10px 10px}
+  .leyenda{display:flex;gap:14px;font-size:.85rem;color:var(--mute);margin:0 4px 6px}
+  .leyenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  #prod-grafica svg{display:block;width:100%;height:auto;overflow:visible}
+  #prod-grafica .barra{cursor:pointer}
+  #prod-grafica .eje{fill:var(--mute);font-size:10px}
+  .ayuda{display:block;margin:6px 4px 0}
+  #prod-dia .grupo header{background:var(--panel2)}
   .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
   .seg button{flex:1;border-radius:0;background:var(--bg);color:var(--mute);font-weight:500}
   .seg button.on{background:var(--panel2);color:var(--txt);font-weight:700}
@@ -125,13 +147,18 @@
 <header class="top">
   <button data-ir="dictar">🎙 Dictar</button>
   <button data-ir="panel">📋 Pendientes</button>
-  <button data-ir="ajustes">⚙ Ajustes</button>
+  <button data-ir="produccion">📊 Producción</button>
+  <button data-ir="ajustes" class="solo-icono" aria-label="Ajustes" title="Ajustes">⚙</button>
 </header>
 
 <!-- 1. DICTAR -->
 <section class="vista" id="v-dictar">
   <button id="mic" aria-label="Grabar">🎙</button>
   <div id="estado">Toca para dictar</div>
+  <div class="enlaces" id="reintento" hidden>
+    <button id="btn-reintentar">↻ Reintentar</button>
+    <button class="sec" id="btn-descartar">Descartar</button>
+  </div>
   <div class="enlaces">
     <button class="sec" id="btn-texto">⌨ Escribir</button>
     <button class="sec" id="btn-manual">✎ Llenar a mano</button>
@@ -159,6 +186,28 @@
 </section>
 
 <!-- 3. AJUSTES -->
+<!-- 3. PRODUCCIÓN -->
+<section class="vista" id="v-produccion" hidden>
+  <div class="filtros">
+    <select id="prod-periodo">
+      <option value="7">7 días</option>
+      <option value="30" selected>30 días</option>
+      <option value="mes">Este mes</option>
+    </select>
+    <div class="seg" id="prod-modo">
+      <button type="button" data-modo="generado" class="on">Generado</button>
+      <button type="button" data-modo="cobrado">Cobrado</button>
+    </div>
+  </div>
+  <div class="kpis" id="prod-kpis"></div>
+  <div class="caja grafica">
+    <div class="leyenda" id="prod-leyenda"></div>
+    <div id="prod-grafica"></div>
+    <small class="ayuda">Toca una barra para ver los estudios de ese día.</small>
+  </div>
+  <div id="prod-dia"></div>
+</section>
+
 <section class="vista" id="v-ajustes" hidden>
   <div class="caja">
     <h2>Hospitales</h2>

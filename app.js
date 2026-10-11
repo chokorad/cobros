@@ -23,7 +23,9 @@ const auth = initializeAuth(app, {
 });
 const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 const ai = getAI(app, { backend: new GoogleAIBackend() });
-const modelo = getGenerativeModel(ai, { model: MODELO, generationConfig: { responseMimeType: 'application/json' } });
+// Modelo principal + respaldos por si Google está saturado.
+const MODELOS = [...new Set([MODELO, 'gemini-3.8-flash', 'gemini-3.5-flash-lite'])];
+const modelos = MODELOS.map(m => getGenerativeModel(ai, { model: m, generationConfig: { responseMimeType: 'application/json' } }));
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
@@ -37,6 +39,10 @@ const sumarDias = (iso, n) => { const d = new Date((iso || hoyISO()) + 'T12:00')
 // Antes de las 5 a.m. cuenta como el día clínico anterior (lo que dictas de madrugada es de la guardia de ayer).
 const diaClinicoISO = () => new Date().getHours() < 5 ? sumarDias(hoyISO(), -1) : hoyISO();
 const fechaBonita = iso => iso ? new Date(iso + 'T12:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '';
+// Color fijo por día de la semana (0 = domingo). Paleta validada para daltonismo sobre fondo oscuro.
+const COLOR_DIA = ['#e66767', '#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#9085e9'];
+const ABREV_DIA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const diaSemana = iso => new Date(iso + 'T12:00').getDay();
 const porNombre = (a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es');
 const setEstado = t => { $('#estado').textContent = t; };
 
@@ -92,11 +98,12 @@ onAuthStateChanged(auth, user => {
     onSnapshot(col('estudios'), s => { estudios = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); })
   );
   ir(location.hash.slice(1) || 'dictar');
+  cargarPendiente();
 });
 
 // ---------- Navegación
 function ir(v) {
-  if (!['dictar', 'panel', 'ajustes'].includes(v)) v = 'dictar';
+  if (!['dictar', 'panel', 'produccion', 'ajustes'].includes(v)) v = 'dictar';
   document.querySelectorAll('.vista').forEach(s => { s.hidden = s.id !== 'v-' + v; });
   document.querySelectorAll('[data-ir]').forEach(b => b.classList.toggle('act', b.dataset.ir === v));
   if (location.hash.slice(1) !== v) history.replaceState(null, '', '#' + v);
@@ -105,7 +112,7 @@ document.querySelectorAll('[data-ir]').forEach(b => { b.onclick = () => ir(b.dat
 $('#barra-total').onclick = () => ir('panel');
 window.addEventListener('hashchange', () => ir(location.hash.slice(1)));
 
-function render() { renderTotal(); renderPanel(); renderAjustes(); }
+function render() { renderTotal(); renderPanel(); renderProduccion(); renderAjustes(); }
 
 // ---------- 1. Dictar
 let grabadora = null;
@@ -131,7 +138,8 @@ mic.onclick = async () => {
 };
 
 $('#btn-texto').onclick = () => { const f = $('#form-texto'); f.hidden = !f.hidden; if (!f.hidden) f.texto.focus(); };
-$('#btn-manual').onclick = () => abrirTarjeta({});
+// Si hay un dictado atorado, llenarlo a mano lo da por resuelto al guardar.
+$('#btn-manual').onclick = () => { abrirTarjeta({ transcripcion: pendiente?.texto || '' }); desdePendiente = !!pendiente; };
 $('#form-texto').onsubmit = e => {
   e.preventDefault();
   const t = e.target.texto.value.trim();
@@ -172,13 +180,13 @@ const aBase64 = blob => new Promise((ok, mal) => {
   r.readAsDataURL(blob);
 });
 
-function construirPrompt() {
+function construirPrompt(diaRef = diaClinicoISO()) {
   const hs = [...hospitales.values()].filter(h => !h.archivado)
     .map(h => `${h.id} | ${h.nombre} | ${(h.alias || []).join(', ')}`).join('\n') || '(ninguno todavía)';
   const cs = [...contactos.values()].map(c => `${c.id} | ${c.nombre}`).join('\n') || '(ninguno todavía)';
   const frecuentes = [...new Set(estudios.map(e => e.estudio).filter(Boolean))].slice(0, 40).join('; ') || '(ninguno todavía)';
   return `Eres el asistente de un radiólogo en Mexicali, México. Del dictado extrae UN registro de honorarios pendientes de cobrar.
-Hoy es ${diaClinicoISO()} (día clínico; si son menos de las 5 a.m. ya se cuenta como el día anterior). Convierte fechas relativas ("hoy", "ayer", "el lunes", "el 25 de septiembre") a YYYY-MM-DD tomando esa fecha como "hoy". Si no se menciona fecha, usa ${diaClinicoISO()}.
+Hoy es ${diaRef} (día clínico; si son menos de las 5 a.m. ya se cuenta como el día anterior). Convierte fechas relativas ("hoy", "ayer", "el lunes", "el 25 de septiembre") a YYYY-MM-DD tomando esa fecha como "hoy". Si no se menciona fecha, usa ${diaRef}.
 
 Hospitales conocidos (id | nombre | otros nombres):
 ${hs}
@@ -205,32 +213,100 @@ Responde SOLO con este JSON:
 {"paciente":string,"estudio":string,"hospital_id":string|null,"hospital_nuevo":string|null,"cobrar_a_id":string|null,"cobrar_a_nuevo":string|null,"monto":number|null,"fecha":"YYYY-MM-DD","pago":"particular"|"aseguradora","aseguradora":string,"nota":string,"transcripcion":string}`;
 }
 
+// ---------- Dictado pendiente (no se pierde si Gemini falla)
+const CLAVE_PEND = 'cobros-dictado-pendiente';
+let pendiente = null; // { b64, texto, diaRef, ts }
+function guardarPendiente(p) {
+  pendiente = p;
+  try { p ? localStorage.setItem(CLAVE_PEND, JSON.stringify(p)) : localStorage.removeItem(CLAVE_PEND); } catch {}
+  $('#reintento').hidden = !p;
+}
+function cargarPendiente() {
+  try { const p = JSON.parse(localStorage.getItem(CLAVE_PEND) || 'null'); if (p && (p.b64 || p.texto)) pendiente = p; } catch {}
+  if (pendiente) {
+    $('#reintento').hidden = false;
+    const cuando = new Date(pendiente.ts).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+    setEstado(`Tienes un dictado sin procesar (${cuando}). Toca Reintentar.`);
+  }
+}
+
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+// Errores pasajeros: Google saturado, límite de uso, o se cayó la red.
+const esPasajero = e => /high demand|overload|unavailable|exhausted|try again|\b(429|500|502|503|504)\b|network|failed to fetch|timeout/i
+  .test(`${e?.message || ''} ${e?.code || ''} ${e?.status || ''}`);
+
 async function procesar({ audio, texto }) {
-  if (!navigator.onLine) { setEstado('Sin conexión: llénalo a mano'); abrirTarjeta({ transcripcion: texto || '' }); return; }
-  setEstado('Interpretando…');
+  setEstado('Preparando…');
   mic.disabled = true;
   try {
-    const partes = [construirPrompt()];
     if (!RECAPTCHA_KEY) throw new Error('Falta RECAPTCHA_KEY en config.js (App Check)');
+    let b64 = null;
     if (audio) {
       if (audio.size < 1500) throw new Error('No se grabó audio (revisa el permiso del micrófono)');
-      const wav = await aWav(audio);
-      partes.push({ inlineData: { data: await aBase64(wav), mimeType: 'audio/wav' } });
-    } else partes.push('Dictado: ' + texto);
-    const r = await modelo.generateContent(partes);
-    const d = JSON.parse(r.response.text().replace(/^```(json)?|```$/g, '').trim());
-    setEstado('Revisa y guarda');
-    abrirTarjeta(d);
+      b64 = await aBase64(await aWav(audio));
+    }
+    // Se guarda ANTES de mandarlo: si algo falla (o cierras la app) no tienes que volver a dictar.
+    guardarPendiente({ b64, texto: texto || '', diaRef: diaClinicoISO(), ts: Date.now() });
   } catch (e) {
-    console.error(e);
-    const msg = (e && (e.message || e.code)) || String(e);
-    setEstado('Error: ' + msg.slice(0, 220));
-    abrirTarjeta({ transcripcion: texto || '' });
-    $('#transcripcion').textContent = '⚠ No se pudo interpretar: ' + msg.slice(0, 300);
+    mic.disabled = false;
+    return mostrarError(e, texto);
+  }
+  await interpretarPendiente();
+}
+
+async function interpretarPendiente() {
+  const p = pendiente;
+  if (!p) return;
+  if (!navigator.onLine) { setEstado('Sin conexión. Tu dictado quedó guardado: toca Reintentar cuando tengas señal.'); mic.disabled = false; return; }
+  mic.disabled = true;
+  $('#reintento').hidden = true;
+  const partes = [construirPrompt(p.diaRef)];
+  partes.push(p.b64 ? { inlineData: { data: p.b64, mimeType: 'audio/wav' } } : 'Dictado: ' + p.texto);
+
+  let ultimo = null;
+  try {
+    for (let m = 0; m < modelos.length; m++) {
+      for (let intento = 1; intento <= 3; intento++) {
+        setEstado(m === 0 && intento === 1 ? 'Interpretando…'
+          : `Gemini saturado, reintentando${m ? ' con otro modelo' : ''} (${intento}/3)…`);
+        try {
+          const r = await modelos[m].generateContent(partes);
+          const d = JSON.parse(r.response.text().replace(/^```(json)?|```$/g, '').trim());
+          guardarPendiente(null);
+          setEstado('Revisa y guarda');
+          abrirTarjeta(d);
+          return;
+        } catch (e) {
+          ultimo = e;
+          console.warn(MODELOS[m], intento, e);
+          if (!esPasajero(e)) throw e;              // error real: no tiene caso reintentar
+          if (intento < 3) await esperar(1500 * intento);
+        }
+      }
+    }
+    // Todos saturados: el dictado se queda guardado para reintentar.
+    setEstado('Gemini sigue saturado. Tu dictado quedó guardado: toca Reintentar en un momento.');
+    $('#reintento').hidden = false;
+    console.error(ultimo);
+  } catch (e) {
+    $('#reintento').hidden = false;
+    mostrarError(e, p.texto, true);
   } finally {
     mic.disabled = false;
   }
 }
+
+function mostrarError(e, texto, sinTarjeta) {
+  console.error(e);
+  const msg = (e && (e.message || e.code)) || String(e);
+  setEstado('Error: ' + msg.slice(0, 220));
+  if (sinTarjeta) return;
+  abrirTarjeta({ transcripcion: texto || '' });
+  $('#transcripcion').textContent = '⚠ No se pudo interpretar: ' + msg.slice(0, 300);
+}
+
+$('#btn-reintentar').onclick = () => interpretarPendiente();
+$('#btn-descartar').onclick = () => { if (confirm('¿Descartar este dictado?')) { guardarPendiente(null); setEstado('Toca para dictar'); } };
 
 // ---------- Tarjeta de confirmación
 const dlg = $('#tarjeta');
@@ -238,7 +314,9 @@ const ft = $('#form-tarjeta');
 let editando = null;
 let transcripcionActual = '';
 
+let desdePendiente = false;
 function abrirTarjeta(d, existente) {
+  desdePendiente = false;
   editando = existente?.id || null;
   if (existente) {
     d = { paciente: existente.paciente, estudio: existente.estudio, hospital_id: existente.hospitalId,
@@ -355,6 +433,7 @@ ft.onsubmit = e => {
   if (editando) actualizar('estudios', editando, datos);
   else crear('estudios', { ...datos, transcripcion: transcripcionActual, estatus: 'pendiente', cobradoFecha: null, creado: serverTimestamp() });
   dlg.close();
+  if (desdePendiente) { guardarPendiente(null); desdePendiente = false; }
   setEstado('Guardado ✓  Toca para dictar otro');
 };
 
@@ -390,13 +469,13 @@ function itemHTML(e) {
     ? `<span class="dias${dias > limite ? ' tarde' : ''}">${dias === 0 ? 'hoy' : dias === 1 ? 'hace 1 día' : `hace ${dias} días`}</span>`
     : '';
   const extra = [
-    fechaBonita(e.fecha),
+    e.fecha ? `<span class="dia-tag">${ABREV_DIA[diaSemana(e.fecha)]}</span> ${fechaBonita(e.fecha)}` : '',
     diasTxt,
     e.nota ? `<i>${esc(e.nota)}</i>` : '',
     propio && c ? `cobrar a ${esc(c.nombre)}` : '',
     e.estatus === 'cobrado' && e.cobradoFecha ? `cobrado ${fechaBonita(e.cobradoFecha)}` : ''
   ].filter(Boolean).join(' · ');
-  return `<div class="item">
+  return `<div class="item"${e.fecha ? ` style="--dia:${COLOR_DIA[diaSemana(e.fecha)]}"` : ''}>
     <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${extra}</small></div>
     <div class="acc">
       <strong>${dinero(e.monto)}</strong>
@@ -452,7 +531,123 @@ $('#panel').onclick = e => {
   if (b.dataset.act === 'pendiente') actualizar('estudios', id, { estatus: 'pendiente', cobradoFecha: null, cobradoEn: null });
 };
 
-// ---------- 3. Ajustes
+// ---------- 3. Producción
+const C_COBRADO = '#3987e5', C_PEND = '#d95926';
+let prodModo = 'generado', prodDiaSel = null;
+
+function diasPeriodo() {
+  const p = $('#prod-periodo').value, hoy = hoyISO();
+  let desde;
+  if (p === 'mes') desde = hoy.slice(0, 8) + '01';
+  else desde = sumarDias(hoy, -(+p - 1));
+  const dias = [];
+  for (let d = desde; d <= hoy; d = sumarDias(d, 1)) dias.push(d);
+  return dias;
+}
+const dineroCorto = n => n >= 1000 ? `$${(n / 1000).toLocaleString('es-MX', { maximumFractionDigits: n >= 10000 ? 0 : 1 })}k` : `$${Math.round(n)}`;
+
+function renderProduccion() {
+  if (!$('#v-produccion')) return;
+  const dias = diasPeriodo();
+  const clave = prodModo === 'generado' ? 'fecha' : 'cobradoFecha';
+  const base = prodModo === 'generado' ? estudios : estudios.filter(e => e.estatus === 'cobrado');
+  const porDia = new Map(dias.map(d => [d, { cobrado: 0, pendiente: 0, n: 0, aseg: 0 }]));
+  for (const e of base) {
+    const d = porDia.get(e[clave]);
+    if (!d) continue;
+    const m = +e.monto || 0;
+    if (e.estatus === 'cobrado') d.cobrado += m; else d.pendiente += m;
+    if (esAseg(e)) d.aseg += m;
+    d.n++;
+  }
+  const filas = dias.map(d => ({ d, ...porDia.get(d), total: porDia.get(d).cobrado + porDia.get(d).pendiente }));
+  const total = filas.reduce((s, f) => s + f.total, 0);
+  const trabajados = filas.filter(f => f.n);
+  const mejor = trabajados.reduce((m, f) => (!m || f.total > m.total ? f : m), null);
+  const aseg = filas.reduce((s, f) => s + f.aseg, 0);
+  const nEst = filas.reduce((s, f) => s + f.n, 0);
+
+  $('#prod-kpis').innerHTML = `
+    <div class="kpi"><small>${prodModo === 'generado' ? 'Generado' : 'Cobrado'}</small><b>${dinero(total)}</b><span>${nEst} estudio${nEst === 1 ? '' : 's'}</span></div>
+    <div class="kpi"><small>Promedio por día trabajado</small><b>${dinero(trabajados.length ? total / trabajados.length : 0)}</b><span>${trabajados.length} día${trabajados.length === 1 ? '' : 's'} con estudios</span></div>
+    <div class="kpi"><small>Mejor día</small><b>${mejor ? dinero(mejor.total) : '—'}</b><span>${mejor ? `${ABREV_DIA[diaSemana(mejor.d)]} ${fechaBonita(mejor.d)}` : 'sin datos'}</span></div>
+    <div class="kpi"><small>De aseguradoras</small><b>${dinero(aseg)}</b><span>${total ? Math.round(aseg / total * 100) : 0}% del total</span></div>`;
+
+  $('#prod-leyenda').innerHTML = prodModo === 'generado'
+    ? `<span><i style="background:${C_COBRADO}"></i>Cobrado</span><span><i style="background:${C_PEND}"></i>Pendiente</span>`
+    : `<span>Lo que marcaste como cobrado cada día</span>`;
+
+  // Gráfica de barras en SVG
+  const W = 360, H = 190, PL = 34, PR = 4, PT = 8, PB = 28;
+  const maxV = Math.max(...filas.map(f => f.total), 1);
+  const paso = maxV <= 2000 ? 500 : maxV <= 5000 ? 1000 : maxV <= 12000 ? 2500 : maxV <= 30000 ? 5000 : 10000;
+  const tope = Math.ceil(maxV / paso) * paso;
+  const y = v => PT + (H - PT - PB) * (1 - v / tope);
+  const n = filas.length, ancho = (W - PL - PR) / n, gap = n > 20 ? 2 : 6, bw = Math.max(3, ancho - gap);
+  const r = Math.min(4, bw / 2);
+  // Barra con esquinas superiores redondeadas, apoyada en la base.
+  const barra = (x, y0, y1, col, redonda) => {
+    const h = y0 - y1; if (h <= 0) return '';
+    const rr = redonda ? Math.min(r, h) : 0;
+    return `<path d="M${x},${y0} V${y1 + rr} Q${x},${y1} ${x + rr},${y1} H${x + bw - rr} Q${x + bw},${y1} ${x + bw},${y1 + rr} V${y0} Z" fill="${col}"/>`;
+  };
+  let svg = '';
+  for (let v = 0; v <= tope; v += paso) {
+    svg += `<line x1="${PL}" x2="${W - PR}" y1="${y(v)}" y2="${y(v)}" stroke="#334155" stroke-width="1"${v ? ' stroke-dasharray="2 4"' : ''}/>`;
+    svg += `<text class="eje" x="${PL - 6}" y="${y(v) + 3}" text-anchor="end">${dineroCorto(v)}</text>`;
+  }
+  const cadaCuanto = n <= 10 ? 1 : n <= 20 ? 3 : 5;
+  filas.forEach((f, i) => {
+    const x = PL + i * ancho + (ancho - bw) / 2;
+    const sel = prodDiaSel === f.d, dim = prodDiaSel && !sel;
+    const y0 = y(0), yC = y(f.cobrado), yT = y(f.total);
+    let marcas = '';
+    if (prodModo === 'generado') {
+      marcas += barra(x, y0, yC, C_COBRADO, !f.pendiente);
+      if (f.pendiente) marcas += barra(x, f.cobrado ? yC - 2 : y0, yT, C_PEND, true); // 2px de separación entre segmentos
+    } else marcas += barra(x, y0, yT, C_COBRADO, true);
+    const titulo = `${ABREV_DIA[diaSemana(f.d)]} ${fechaBonita(f.d)}: ${dinero(f.total)}${f.n ? ` · ${f.n} estudio${f.n > 1 ? 's' : ''}` : ''}${prodModo === 'generado' && f.total ? ` (cobrado ${dinero(f.cobrado)}, pendiente ${dinero(f.pendiente)})` : ''}`;
+    svg += `<g class="barra" data-dia="${f.d}" opacity="${dim ? .35 : 1}"><title>${esc(titulo)}</title>
+      <rect x="${PL + i * ancho}" y="${PT}" width="${ancho}" height="${H - PT}" fill="transparent"/>${marcas}
+      <rect x="${x}" y="${H - PB + 3}" width="${bw}" height="3" rx="1.5" fill="${COLOR_DIA[diaSemana(f.d)]}"/>
+      ${sel ? `<rect x="${x - 1}" y="${yT - 3}" width="${bw + 2}" height="${y0 - yT + 4}" fill="none" stroke="#e2e8f0" stroke-width="1.5" rx="3"/>` : ''}
+    </g>`;
+    if (i % cadaCuanto === 0 || i === n - 1)
+      svg += `<text class="eje" x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${n <= 10 ? ABREV_DIA[diaSemana(f.d)] + ' ' : ''}${+f.d.slice(8)}</text>`;
+  });
+  $('#prod-grafica').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Producción por día">${svg}</svg>`;
+
+  // Detalle del día seleccionado
+  const det = $('#prod-dia');
+  if (!prodDiaSel || !porDia.has(prodDiaSel)) { det.innerHTML = ''; return; }
+  const lista = base.filter(e => e[clave] === prodDiaSel);
+  const f = filas.find(x => x.d === prodDiaSel);
+  det.innerHTML = `<article class="grupo">
+    <header><div><h3>${new Date(prodDiaSel + 'T12:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</h3>
+      <small>${lista.length} estudio${lista.length === 1 ? '' : 's'}${prodModo === 'generado' && f.total ? ` · cobrado ${dinero(f.cobrado)} · pendiente ${dinero(f.pendiente)}` : ''}</small></div>
+      <div class="der"><strong>${dinero(f.total)}</strong></div></header>
+    ${lista.length ? lista.map(e => `<div class="item" style="--dia:${COLOR_DIA[diaSemana(prodDiaSel)]}">
+      <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b>
+        <span>${esc(e.estudio)}</span><small>${esc(hospitales.get(e.hospitalId)?.nombre || '')} · ${e.estatus === 'cobrado' ? 'cobrado' : 'pendiente'}</small></div>
+      <div class="acc"><strong>${dinero(e.monto)}</strong></div></div>`).join('') : '<p class="vacio">Sin estudios ese día.</p>'}
+  </article>`;
+}
+
+$('#prod-periodo').onchange = () => { prodDiaSel = null; renderProduccion(); };
+$('#prod-modo').onclick = e => {
+  const b = e.target.closest('button[data-modo]'); if (!b) return;
+  prodModo = b.dataset.modo; prodDiaSel = null;
+  document.querySelectorAll('#prod-modo button').forEach(x => x.classList.toggle('on', x === b));
+  renderProduccion();
+};
+$('#prod-grafica').onclick = e => {
+  const g = e.target.closest('g.barra'); if (!g) return;
+  prodDiaSel = prodDiaSel === g.dataset.dia ? null : g.dataset.dia;
+  renderProduccion();
+  if (prodDiaSel) $('#prod-dia').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+// ---------- 4. Ajustes
 function opcionesContacto(sel) {
   return '<option value="">— sin definir —</option>'
     + [...contactos.values()].sort(porNombre)
