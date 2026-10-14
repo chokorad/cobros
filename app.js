@@ -4,7 +4,7 @@ import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, bro
   GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp }
+  collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch }
   from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js';
 import { getAI, getGenerativeModel, GoogleAIBackend } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js';
@@ -60,6 +60,8 @@ let uid = null;
 const hospitales = new Map();
 const contactos = new Map();
 let estudios = [];
+let estudiosListos = false; // no tomar decisiones hasta que carguen los estudios
+const cobros = new Map(); // registros de cada cobro confirmado
 let desuscribir = [];
 
 const col = n => collection(db, 'users', uid, n);
@@ -95,7 +97,8 @@ onAuthStateChanged(auth, user => {
   desuscribir.push(
     onSnapshot(col('hospitales'), s => { hospitales.clear(); s.forEach(d => hospitales.set(d.id, { id: d.id, ...d.data() })); render(); }),
     onSnapshot(col('contactos'), s => { contactos.clear(); s.forEach(d => contactos.set(d.id, { id: d.id, ...d.data() })); render(); }),
-    onSnapshot(col('estudios'), s => { estudios = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); })
+    onSnapshot(col('estudios'), s => { estudios = s.docs.map(d => ({ id: d.id, ...d.data() })); estudiosListos = true; render(); }),
+    onSnapshot(col('cobros'), s => { cobros.clear(); s.forEach(d => cobros.set(d.id, { id: d.id, ...d.data() })); render(); })
   );
   ir(location.hash.slice(1) || 'dictar');
   cargarPendiente();
@@ -460,7 +463,7 @@ function renderTotal() {
 
 const botonLlamar = (tel, nombre) => `<a class="llamar" href="tel:${esc(tel)}" title="Llamar a ${esc(nombre)}">📞</a>`;
 
-function itemHTML(e) {
+function itemHTML(e, modo) {
   const c = cobradorDe(e);
   const propio = !!e.cobrarAId;
   const dias = diasDesde(e.fecha);
@@ -475,6 +478,20 @@ function itemHTML(e) {
     propio && c ? `cobrar a ${esc(c.nombre)}` : '',
     e.estatus === 'cobrado' && e.cobradoFecha ? `cobrado ${fechaBonita(e.cobradoFecha)}` : ''
   ].filter(Boolean).join(' · ');
+  if (modo === 'cobro') {
+    const on = sesionCobro.sel.includes(e.id);
+    return `<div class="item marcable${on ? ' marcado' : ''}" data-marcar="${e.id}"${e.fecha ? ` style="--dia:${COLOR_DIA[diaSemana(e.fecha)]}"` : ''}>
+      <div class="caja-check" aria-hidden="true">${on ? '✓' : ''}</div>
+      <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${extra}</small></div>
+      <div class="acc"><strong>${dinero(e.monto)}</strong></div>
+    </div>`;
+  }
+  if (modo === 'historial') {
+    return `<div class="item"${e.fecha ? ` style="--dia:${COLOR_DIA[diaSemana(e.fecha)]}"` : ''}>
+      <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${e.fecha ? `<span class="dia-tag">${ABREV_DIA[diaSemana(e.fecha)]}</span> ${fechaBonita(e.fecha)}` : ''}</small></div>
+      <div class="acc"><strong>${dinero(e.monto)}</strong>${e.cobroId ? '' : `<button class="sec" data-act="pendiente" data-id="${e.id}">Deshacer</button>`}</div>
+    </div>`;
+  }
   return `<div class="item"${e.fecha ? ` style="--dia:${COLOR_DIA[diaSemana(e.fecha)]}"` : ''}>
     <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${extra}</small></div>
     <div class="acc">
@@ -488,10 +505,55 @@ function itemHTML(e) {
   </div>`;
 }
 
+// ---------- Sesión de cobro (en caja, hospital por hospital)
+const CLAVE_SESION = 'cobros-sesion-cobro';
+let sesionCobro = null; // { hospitalId, sel: [ids] }
+try { sesionCobro = JSON.parse(localStorage.getItem(CLAVE_SESION) || 'null'); } catch {}
+function guardarSesion() {
+  try { sesionCobro ? localStorage.setItem(CLAVE_SESION, JSON.stringify(sesionCobro)) : localStorage.removeItem(CLAVE_SESION); } catch {}
+  document.body.classList.toggle('cobrando', !!sesionCobro);
+}
+const sumar = arr => arr.reduce((s, e) => s + (+e.monto || 0), 0);
+const pendientesDe = hId => estudios.filter(e => e.estatus === 'pendiente' && (e.hospitalId || '_') === hId)
+  .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
+
+function renderBarraCobro() {
+  if (!sesionCobro) return;
+  const todos = pendientesDe(sesionCobro.hospitalId);
+  if (estudiosListos) sesionCobro.sel = sesionCobro.sel.filter(id => todos.some(e => e.id === id));
+  const sel = todos.filter(e => sesionCobro.sel.includes(e.id));
+  const faltan = todos.filter(e => !sesionCobro.sel.includes(e.id));
+  $('#cobro-cuenta').textContent = `${sel.length} de ${todos.length} · ${dinero(sumar(sel))}`;
+  $('#cobro-faltan').textContent = faltan.length ? `Faltan ${faltan.length} · ${dinero(sumar(faltan))}` : 'Todos marcados';
+  $('#btn-confirmar-cobro').disabled = !sel.length;
+}
+
 function renderPanel() {
+  document.body.classList.toggle('cobrando', !!sesionCobro);
   const filtro = $('#filtro').value;
   const fp = $('#filtro-pago').value;
-  const lista = estudios.filter(e => e.estatus === filtro)
+
+  // Modo cobro: solo el hospital que estás cobrando
+  if (sesionCobro) {
+    const hId = sesionCobro.hospitalId;
+    const h = hospitales.get(hId);
+    const arr = pendientesDe(hId);
+    if (!estudiosListos) { $('#panel').innerHTML = '<p class="vacio">Cargando…</p>'; return; }
+    if (!arr.length) { sesionCobro = null; guardarSesion(); return renderPanel(); }
+    $('#panel').innerHTML = `<article class="grupo en-cobro">
+      <header><div><h3>💵 Cobrando: ${esc(h?.nombre || 'Sin hospital')}</h3>
+        <small>Toca cada estudio cuyo recibo ya firmaste</small></div>
+        <div class="der"><button class="sec" data-act="cancelar-cobro">Cancelar</button></div></header>
+      ${arr.map(e => itemHTML(e, 'cobro')).join('')}
+    </article>`;
+    renderBarraCobro();
+    return;
+  }
+
+  // Historial: cada cobro confirmado como una tarjeta
+  if (filtro === 'cobrado') return renderHistorial(fp);
+
+  const lista = estudios.filter(e => e.estatus === 'pendiente')
     .filter(e => !fp || (fp === 'aseguradora') === esAseg(e))
     .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
   const grupos = new Map();
@@ -500,35 +562,165 @@ function renderPanel() {
     if (!grupos.has(k)) grupos.set(k, []);
     grupos.get(k).push(e);
   }
-  const orden = [...grupos].map(([k, arr]) => ({ k, arr, total: arr.reduce((s, e) => s + (+e.monto || 0), 0) }))
-    .sort((a, b) => b.total - a.total);
+  const orden = [...grupos].map(([k, arr]) => ({ k, arr, total: sumar(arr) })).sort((a, b) => b.total - a.total);
 
   $('#panel').innerHTML = orden.length ? orden.map(({ k, arr, total }) => {
     const h = hospitales.get(k);
     const def = contactos.get(h?.cobradorId);
+    const as = sumar(arr.filter(esAseg));
     return `<article class="grupo">
       <header>
         <div><h3>${esc(h?.nombre || 'Sin hospital')}</h3>
           <small>${arr.length} estudio${arr.length > 1 ? 's' : ''}${def ? ' · cobra ' + esc(def.nombre) : ''}</small></div>
-        <div class="der"><div style="text-align:right"><strong>${dinero(total)}</strong>${(() => {
-          const as = arr.filter(esAseg).reduce((s, e) => s + (+e.monto || 0), 0);
-          return as && as !== total ? `<span class="sub-pago">${dinero(total - as)} part. · ${dinero(as)} aseg.</span>` : '';
-        })()}</div>${def?.telefono ? botonLlamar(def.telefono, def.nombre) : ''}</div>
+        <div class="der"><div style="text-align:right"><strong>${dinero(total)}</strong>${as && as !== total ? `<span class="sub-pago">${dinero(total - as)} part. · ${dinero(as)} aseg.</span>` : ''}</div>${def?.telefono ? botonLlamar(def.telefono, def.nombre) : ''}</div>
       </header>
-      ${arr.map(itemHTML).join('')}
+      <div class="cobrar-aqui"><button data-act="iniciar-cobro" data-h="${k}">💵 Cobrar aquí</button></div>
+      ${arr.map(e => itemHTML(e)).join('')}
     </article>`;
-  }).join('') : `<p class="vacio">${filtro === 'pendiente' ? 'Nada pendiente por cobrar 🎉' : 'Aún no hay cobrados.'}</p>`;
+  }).join('') : `<p class="vacio">Nada pendiente por cobrar 🎉</p>`;
+}
+
+function renderHistorial(fp) {
+  const hechos = estudios.filter(e => e.estatus === 'cobrado').filter(e => !fp || (fp === 'aseguradora') === esAseg(e));
+  const tarjetas = [];
+  // Cobros registrados
+  for (const c of cobros.values()) {
+    const arr = hechos.filter(e => e.cobroId === c.id);
+    if (!arr.length && fp) continue;
+    tarjetas.push({ fecha: c.fecha, orden: c.creadoMs || 0, c, arr });
+  }
+  // Cobros hechos antes de que existiera el historial (o sin registro)
+  const sueltos = new Map();
+  for (const e of hechos.filter(e => !e.cobroId || !cobros.has(e.cobroId))) {
+    const k = `${e.cobradoFecha || ''}|${e.hospitalId || '_'}`;
+    if (!sueltos.has(k)) sueltos.set(k, []);
+    sueltos.get(k).push(e);
+  }
+  for (const [k, arr] of sueltos) tarjetas.push({ fecha: k.split('|')[0], orden: 0, arr, hospitalId: k.split('|')[1] });
+  tarjetas.sort((x, y) => (y.fecha || '').localeCompare(x.fecha || '') || y.orden - x.orden);
+
+  $('#panel').innerHTML = tarjetas.length ? tarjetas.map(t => {
+    const hId = t.c?.hospitalId || t.hospitalId;
+    const h = hospitales.get(hId);
+    const esperado = t.c ? t.c.esperado : sumar(t.arr);
+    const recibido = t.c ? t.c.recibido : esperado;
+    const dif = recibido - esperado;
+    const fechaTxt = t.fecha ? `${ABREV_DIA[diaSemana(t.fecha)]} ${fechaBonita(t.fecha)}` : 'Sin fecha';
+    return `<article class="grupo">
+      <header>
+        <div><h3>${fechaTxt} · ${esc(h?.nombre || 'Sin hospital')}</h3>
+          <small>${t.arr.length} paciente${t.arr.length === 1 ? '' : 's'}${t.c ? '' : ' · registro anterior'}${dif ? ` · esperado ${dinero(esperado)}` : ''}</small>
+          ${dif ? `<span class="dif ${dif < 0 ? 'menos' : 'mas'}">${dif < 0 ? 'Te pagaron ' + dinero(-dif) + ' menos' : 'Te pagaron ' + dinero(dif) + ' de más'}</span>` : ''}</div>
+        <div class="der"><div style="text-align:right"><small>Recibido</small><strong>${dinero(recibido)}</strong></div></div>
+      </header>
+      ${t.arr.map(e => itemHTML(e, 'historial')).join('')}
+      ${t.c ? `<div class="pie-cobro"><button class="sec" data-act="deshacer-cobro" data-cobro="${t.c.id}">↩ Deshacer cobro</button></div>` : ''}
+    </article>`;
+  }).join('') : '<p class="vacio">Aún no hay cobros.</p>';
+}
+
+// Registra un cobro (uno o varios estudios) en una sola operación.
+function registrarCobro(ids, recibido) {
+  const arr = estudios.filter(e => ids.includes(e.id));
+  if (!arr.length) return null;
+  const ref = doc(col('cobros'));
+  const b = writeBatch(db);
+  const esperado = sumar(arr);
+  b.set(ref, {
+    fecha: hoyISO(), hospitalId: arr[0].hospitalId || '_', estudioIds: ids, n: ids.length,
+    esperado, recibido: recibido ?? esperado, creado: serverTimestamp(), creadoMs: Date.now()
+  });
+  for (const e of arr) b.update(doc(col('estudios'), e.id), { estatus: 'cobrado', cobradoFecha: hoyISO(), cobradoEn: serverTimestamp(), cobroId: ref.id });
+  b.commit().catch(err);
+  return ref.id;
+}
+function deshacerCobro(cobroId) {
+  const b = writeBatch(db);
+  for (const e of estudios.filter(e => e.cobroId === cobroId))
+    b.update(doc(col('estudios'), e.id), { estatus: 'pendiente', cobradoFecha: null, cobradoEn: null, cobroId: null });
+  b.delete(doc(col('cobros'), cobroId));
+  b.commit().catch(err);
+}
+
+// Aviso con "Deshacer" para el botón suelto de Cobrado
+let toastTimer = null;
+function aviso(texto, accion) {
+  const t = $('#toast');
+  $('#toast-txt').textContent = texto;
+  $('#toast-btn').onclick = () => { t.hidden = true; accion?.(); };
+  $('#toast-btn').hidden = !accion;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 7000);
 }
 
 $('#filtro').onchange = renderPanel;
 $('#filtro-pago').onchange = renderPanel;
 $('#panel').onclick = e => {
+  const marca = e.target.closest('[data-marcar]');
+  if (marca && sesionCobro) {
+    const id = marca.dataset.marcar;
+    sesionCobro.sel = sesionCobro.sel.includes(id) ? sesionCobro.sel.filter(x => x !== id) : [...sesionCobro.sel, id];
+    guardarSesion();
+    renderPanel();
+    return;
+  }
   const b = e.target.closest('button[data-act]');
   if (!b) return;
   const id = b.dataset.id;
-  if (b.dataset.act === 'editar') abrirTarjeta(null, estudios.find(x => x.id === id));
-  if (b.dataset.act === 'cobrado') actualizar('estudios', id, { estatus: 'cobrado', cobradoFecha: hoyISO(), cobradoEn: serverTimestamp() });
-  if (b.dataset.act === 'pendiente') actualizar('estudios', id, { estatus: 'pendiente', cobradoFecha: null, cobradoEn: null });
+  const act = b.dataset.act;
+  if (act === 'editar') abrirTarjeta(null, estudios.find(x => x.id === id));
+  if (act === 'cobrado') {
+    const e1 = estudios.find(x => x.id === id);
+    const cid = registrarCobro([id]);
+    aviso(`Cobrado: ${e1?.paciente || ''} · ${dinero(e1?.monto)}`, () => deshacerCobro(cid));
+  }
+  if (act === 'pendiente') actualizar('estudios', id, { estatus: 'pendiente', cobradoFecha: null, cobradoEn: null, cobroId: null });
+  if (act === 'iniciar-cobro') { sesionCobro = { hospitalId: b.dataset.h, sel: [] }; guardarSesion(); window.scrollTo(0, 0); renderPanel(); }
+  if (act === 'cancelar-cobro') {
+    if (!sesionCobro.sel.length || confirm('¿Salir del modo cobro? Se quitan las marcas.')) { sesionCobro = null; guardarSesion(); renderPanel(); }
+  }
+  if (act === 'deshacer-cobro') {
+    const c = cobros.get(b.dataset.cobro);
+    if (c && confirm(`¿Deshacer el cobro de ${c.n} paciente${c.n === 1 ? '' : 's'} (${dinero(c.recibido)})? Regresan a pendientes.`)) deshacerCobro(c.id);
+  }
+};
+
+// Confirmar cobro: resumen + lo que recibiste
+const dlgCobro = $('#dlg-cobro');
+$('#btn-confirmar-cobro').onclick = () => {
+  if (!sesionCobro) return;
+  const sel = pendientesDe(sesionCobro.hospitalId).filter(e => sesionCobro.sel.includes(e.id));
+  if (!sel.length) return;
+  const total = sumar(sel);
+  $('#cobro-titulo').textContent = `${hospitales.get(sesionCobro.hospitalId)?.nombre || 'Cobro'}`;
+  $('#cobro-lista').innerHTML = sel.map(e => `<div class="fila-res"><span>${esc(e.paciente || '—')} <small>${esc(e.estudio)}</small></span><b>${dinero(e.monto)}</b></div>`).join('')
+    + `<div class="fila-res total"><span>Total esperado (${sel.length})</span><b>${dinero(total)}</b></div>`;
+  $('#cobro-recibido').value = total;
+  $('#cobro-recibido').dataset.esperado = total;
+  difCobro();
+  dlgCobro.showModal();
+};
+function difCobro() {
+  const esp = +$('#cobro-recibido').dataset.esperado || 0;
+  const rec = +$('#cobro-recibido').value || 0;
+  const d = rec - esp;
+  const el = $('#cobro-dif');
+  el.className = 'dif ' + (d < 0 ? 'menos' : d > 0 ? 'mas' : '');
+  el.textContent = d === 0 ? '✓ Coincide con lo esperado' : d < 0 ? `Te están pagando ${dinero(-d)} menos` : `Te están pagando ${dinero(d)} de más`;
+}
+$('#cobro-recibido').oninput = difCobro;
+$('#cobro-cancelar').onclick = () => dlgCobro.close();
+$('#form-cobro').onsubmit = ev => {
+  ev.preventDefault();
+  const rec = Number($('#cobro-recibido').value);
+  if (!(rec >= 0)) { alert('Escribe cuánto recibiste'); return; }
+  const n = sesionCobro.sel.length;
+  registrarCobro([...sesionCobro.sel], rec);
+  sesionCobro = null; guardarSesion();
+  dlgCobro.close();
+  renderPanel();
+  aviso(`Cobro registrado: ${n} paciente${n === 1 ? '' : 's'} · ${dinero(rec)}. Lo ves en Cobrados.`);
 };
 
 // ---------- 3. Producción
@@ -546,6 +738,12 @@ function diasPeriodo() {
 }
 const dineroCorto = n => n >= 1000 ? `$${(n / 1000).toLocaleString('es-MX', { maximumFractionDigits: n >= 10000 ? 0 : 1 })}k` : `$${Math.round(n)}`;
 
+// Lo que realmente entró por un estudio (si en caja pagaron distinto, se reparte proporcional).
+function montoRecibido(e) {
+  const c = e.cobroId && cobros.get(e.cobroId);
+  if (!c || !c.esperado || c.recibido === c.esperado) return +e.monto || 0;
+  return (+e.monto || 0) * (c.recibido / c.esperado);
+}
 function renderProduccion() {
   if (!$('#v-produccion')) return;
   const dias = diasPeriodo();
@@ -555,7 +753,7 @@ function renderProduccion() {
   for (const e of base) {
     const d = porDia.get(e[clave]);
     if (!d) continue;
-    const m = +e.monto || 0;
+    const m = prodModo === 'cobrado' ? montoRecibido(e) : (+e.monto || 0);
     if (e.estatus === 'cobrado') d.cobrado += m; else d.pendiente += m;
     if (esAseg(e)) d.aseg += m;
     d.n++;

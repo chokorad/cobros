@@ -97,6 +97,40 @@
   .botones{display:flex;gap:8px;margin-top:16px}
   .botones .grow{flex:1}
   #btn-borrar{background:#7f1d1d}
+  /* modo cobro */
+  .cobrar-aqui{padding:10px 14px 4px}
+  .cobrar-aqui button{width:100%}
+  body.cobrando #barra-total{display:none!important}
+  body.cobrando{padding-bottom:130px}
+  body.cobrando .filtros{display:none}
+  #barra-cobro{display:none;position:fixed;left:0;right:0;bottom:0;z-index:6;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:#14532d;border-top:1px solid #22c55e}
+  body.cobrando:not([data-auth="no"]):not([data-auth="cargando"]) #v-panel:not([hidden]) ~ #barra-cobro{display:flex}
+  #barra-cobro b{display:block;font-size:1.2rem}
+  #barra-cobro small{color:#bbf7d0}
+  #barra-cobro button{background:#22c55e;color:#052e16;font-weight:800;padding:.7em 1em}
+  .grupo.en-cobro{outline:2px solid #22c55e}
+  .item.marcable{cursor:pointer;flex-direction:row;align-items:center;gap:12px;user-select:none}
+  .item.marcable .acc{flex-direction:column;align-items:flex-end}
+  .der small{display:block}
+  .caja-check{flex:0 0 30px;height:30px;border-radius:8px;border:2px solid var(--mute);display:grid;place-content:center;font-weight:900;color:#052e16}
+  .item.marcado{background:#16a34a22}
+  .item.marcado .caja-check{background:#22c55e;border-color:#22c55e}
+  .item.marcable .info{flex:1}
+  .pie-cobro{padding:10px 14px;border-top:1px solid var(--line);text-align:right}
+  .dif{display:block;margin-top:6px;font-weight:700;font-size:.9rem;color:var(--ok)}
+  .dif.menos{color:#f59e0b}
+  .dif.mas{color:#38bdf8}
+  #dlg-cobro form{padding:16px}
+  #dlg-cobro h2{margin:0}
+  #cobro-lista{margin:12px 0 4px;border-top:1px solid var(--line)}
+  .fila-res{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .fila-res small{display:block;color:var(--mute)}
+  .fila-res.total{border-bottom:0;font-size:1.05rem}
+  #cobro-recibido{font-size:1.4rem;font-weight:700}
+  #toast{position:fixed;left:12px;right:12px;bottom:96px;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:#334155;border-radius:12px;padding:10px 12px;box-shadow:0 8px 24px #0008}
+  #toast[hidden]{display:none}
   /* producción */
   #v-produccion .filtros .seg{flex:1.6}
   #v-produccion .filtros select{flex:1;min-width:0}
@@ -238,12 +272,34 @@
   <div class="botones"><button class="sec grow" id="btn-salir">Cerrar sesión</button></div>
 </section>
 
+<div id="toast" hidden><span id="toast-txt"></span><button id="toast-btn" class="sec">Deshacer</button></div>
+
+<footer id="barra-cobro">
+  <div><b id="cobro-cuenta">0 de 0 · $0</b><small id="cobro-faltan"></small></div>
+  <button id="btn-confirmar-cobro" disabled>Confirmar cobro</button>
+</footer>
+
 <footer id="barra-total">
   <div><small>Te deben en total</small><div id="total-monto">$0</div></div>
   <small id="total-n">0 pendientes</small>
 </footer>
 
 <!-- TARJETA DE CONFIRMACIÓN -->
+<dialog id="dlg-cobro">
+  <form id="form-cobro">
+    <h2>Confirmar cobro</h2>
+    <small id="cobro-titulo"></small>
+    <div id="cobro-lista"></div>
+    <label>¿Cuánto recibiste?</label>
+    <input id="cobro-recibido" type="number" inputmode="decimal" min="0" step="1">
+    <div id="cobro-dif" class="dif"></div>
+    <div class="botones">
+      <button type="button" class="sec" id="cobro-cancelar">Volver</button>
+      <button class="grow">Confirmar</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="tarjeta">
   <form id="form-tarjeta">
     <h2 id="tarjeta-titulo">Confirma el estudio</h2>
