@@ -574,7 +574,7 @@ function renderPanel() {
           <small>${arr.length} estudio${arr.length > 1 ? 's' : ''}${def ? ' · cobra ' + esc(def.nombre) : ''}</small></div>
         <div class="der"><div style="text-align:right"><strong>${dinero(total)}</strong>${as && as !== total ? `<span class="sub-pago">${dinero(total - as)} part. · ${dinero(as)} aseg.</span>` : ''}</div>${def?.telefono ? botonLlamar(def.telefono, def.nombre) : ''}</div>
       </header>
-      <div class="cobrar-aqui"><button data-act="iniciar-cobro" data-h="${k}">💵 Cobrar aquí</button></div>
+      <div class="cobrar-aqui"><button data-act="iniciar-cobro" data-h="${k}">💵 Cobrar aquí</button><button class="sec" data-act="copiar-wa" data-h="${k}">📋 WhatsApp</button></div>
       ${arr.map(e => itemHTML(e)).join('')}
     </article>`;
   }).join('') : `<p class="vacio">Nada pendiente por cobrar 🎉</p>`;
@@ -644,14 +644,43 @@ function deshacerCobro(cobroId) {
 
 // Aviso con "Deshacer" para el botón suelto de Cobrado
 let toastTimer = null;
-function aviso(texto, accion) {
+function aviso(texto, accion, etiqueta = 'Deshacer') {
   const t = $('#toast');
   $('#toast-txt').textContent = texto;
+  $('#toast-btn').textContent = etiqueta;
   $('#toast-btn').onclick = () => { t.hidden = true; accion?.(); };
   $('#toast-btn').hidden = !accion;
   t.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, 7000);
+}
+
+// ---------- Copiar pendientes para WhatsApp
+const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const fechaWA = iso => iso ? `${+iso.slice(8, 10)} ${MES_CORTO[+iso.slice(5, 7) - 1]}` : 'sin fecha';
+function textoWhatsApp(hId) {
+  const fp = $('#filtro-pago').value;
+  const arr = pendientesDe(hId).filter(e => !fp || (fp === 'aseguradora') === esAseg(e));
+  const lineas = arr.map((e, i) => `${i + 1}. ${e.paciente || '—'} - ${e.estudio || '—'} - ${dinero(e.monto)} - ${fechaWA(e.fecha)}`);
+  return { n: arr.length, texto: `Pendientes al ${fechaWA(hoyISO())}\n\n${lineas.join('\n')}\n\n*Total: ${arr.length} estudio${arr.length === 1 ? '' : 's'} - ${dinero(sumar(arr))}*` };
+}
+async function copiarTexto(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch {}
+  const ta = document.createElement('textarea');
+  ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch {}
+  ta.remove();
+  return ok;
+}
+async function copiarWhatsApp(hId) {
+  const { n, texto } = textoWhatsApp(hId);
+  if (!n) return aviso('No hay pendientes que copiar');
+  const ok = await copiarTexto(texto);
+  const compartir = navigator.share ? () => navigator.share({ text: texto }).catch(() => {}) : null;
+  if (ok) aviso(`Copiado: ${n} paciente${n === 1 ? '' : 's'}. Pégalo en WhatsApp.`, compartir, 'Compartir');
+  else if (compartir) compartir();
+  else prompt('Copia este texto:', texto);
 }
 
 $('#filtro').onchange = renderPanel;
@@ -676,6 +705,7 @@ $('#panel').onclick = e => {
     aviso(`Cobrado: ${e1?.paciente || ''} · ${dinero(e1?.monto)}`, () => deshacerCobro(cid));
   }
   if (act === 'pendiente') actualizar('estudios', id, { estatus: 'pendiente', cobradoFecha: null, cobradoEn: null, cobroId: null });
+  if (act === 'copiar-wa') copiarWhatsApp(b.dataset.h);
   if (act === 'iniciar-cobro') { sesionCobro = { hospitalId: b.dataset.h, sel: [] }; guardarSesion(); window.scrollTo(0, 0); renderPanel(); }
   if (act === 'cancelar-cobro') {
     if (!sesionCobro.sel.length || confirm('¿Salir del modo cobro? Se quitan las marcas.')) { sesionCobro = null; guardarSesion(); renderPanel(); }
