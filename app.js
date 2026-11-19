@@ -4,7 +4,7 @@ import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, bro
   GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch }
+  collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, writeBatch, runTransaction }
   from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js';
 import { getAI, getGenerativeModel, GoogleAIBackend } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js';
@@ -62,6 +62,7 @@ const contactos = new Map();
 let estudios = [];
 let estudiosListos = false; // no tomar decisiones hasta que carguen los estudios
 const cobros = new Map(); // registros de cada cobro confirmado
+const facturas = new Map();
 let desuscribir = [];
 
 const col = n => collection(db, 'users', uid, n);
@@ -86,7 +87,13 @@ $('#btn-salir').onclick = () => signOut(auth);
 onAuthStateChanged(auth, user => {
   desuscribir.forEach(f => f());
   desuscribir = [];
-  if (!user) { uid = null; document.body.dataset.auth = 'no'; return; }
+  if (!user) {
+    uid = null;
+    facturas.clear();
+    if (dlgFactura.open) dlgFactura.close();
+    document.body.dataset.auth = 'no';
+    return;
+  }
   if (CORREOS_PERMITIDOS.length && !CORREOS_PERMITIDOS.includes(user.email)) {
     alert('Esta cuenta no está autorizada.');
     signOut(auth);
@@ -98,7 +105,12 @@ onAuthStateChanged(auth, user => {
     onSnapshot(col('hospitales'), s => { hospitales.clear(); s.forEach(d => hospitales.set(d.id, { id: d.id, ...d.data() })); render(); }),
     onSnapshot(col('contactos'), s => { contactos.clear(); s.forEach(d => contactos.set(d.id, { id: d.id, ...d.data() })); render(); }),
     onSnapshot(col('estudios'), s => { estudios = s.docs.map(d => ({ id: d.id, ...d.data() })); estudiosListos = true; render(); }),
-    onSnapshot(col('cobros'), s => { cobros.clear(); s.forEach(d => cobros.set(d.id, { id: d.id, ...d.data() })); render(); })
+    onSnapshot(col('cobros'), s => { cobros.clear(); s.forEach(d => cobros.set(d.id, { id: d.id, ...d.data() })); render(); }),
+    onSnapshot(col('facturas'), s => {
+      facturas.clear();
+      s.forEach(d => facturas.set(d.id, { id: d.id, ...d.data() }));
+      renderPanel();
+    })
   );
   ir(location.hash.slice(1) || 'dictar');
   cargarPendiente();
@@ -403,6 +415,7 @@ ft.hospital.onchange = sincronizarTarjeta;
 ft.cobrar.onchange = sincronizarTarjeta;
 $('#btn-cancelar').onclick = () => dlg.close();
 $('#btn-borrar').onclick = () => {
+  if (estudios.find(e => e.id === editando)?.facturaId) { alert('Este estudio está vinculado a una factura.'); return; }
   if (editando && confirm('¿Borrar este estudio?')) { deleteDoc(doc(col('estudios'), editando)).catch(err); dlg.close(); }
 };
 
@@ -410,6 +423,11 @@ ft.onsubmit = e => {
   e.preventDefault();
   let hospitalId = ft.hospital.value;
   if (!hospitalId) { alert('Elige el hospital'); return; }
+  const original = estudios.find(e => e.id === editando);
+  if (original?.facturaId && original.hospitalId !== hospitalId) {
+    alert('El hospital de este estudio está vinculado a una factura.');
+    return;
+  }
   if (hospitalId === '__nuevo') {
     const nombre = ft.hospitalNuevo.value.trim();
     if (!nombre) { alert('Escribe el nombre del hospital'); return; }
@@ -463,7 +481,19 @@ function renderTotal() {
 
 const botonLlamar = (tel, nombre) => `<a class="llamar" href="tel:${esc(tel)}" title="Llamar a ${esc(nombre)}">📞</a>`;
 
+const ESTADOS_FACTURA = { solicitada: 'Solicitada', emitida: 'Emitida', enviada: 'Enviada' };
+const ICONOS_FACTURA = { solicitada: '📄', emitida: '🧾', enviada: '✓' };
+
+function botonFactura(e) {
+  const f = facturas.get(e.facturaId);
+  if (e.facturaId && !f) return '<small>🧾 Cargando factura…</small>';
+  const estado = f?.estado;
+  const etiqueta = estado ? 'Factura ' + ESTADOS_FACTURA[estado].toLowerCase() : 'Registrar solicitud de factura';
+  return `<button type="button" class="sec factura-chip ${estado || ''}" data-act="factura-estudio" data-id="${esc(e.id)}" aria-label="${etiqueta}">${ICONOS_FACTURA[estado] || '＋'} ${estado ? ESTADOS_FACTURA[estado] : 'Factura'}</button>`;
+}
+
 function itemHTML(e, modo) {
+  const factura = botonFactura(e);
   const c = cobradorDe(e);
   const propio = !!e.cobrarAId;
   const dias = diasDesde(e.fecha);
@@ -482,18 +512,18 @@ function itemHTML(e, modo) {
     const on = sesionCobro.sel.includes(e.id);
     return `<div class="item marcable${on ? ' marcado' : ''}" data-marcar="${e.id}"${e.fecha ? ` style="--dia:${COLOR_DIA[diaSemana(e.fecha)]}"` : ''}>
       <div class="caja-check" aria-hidden="true">${on ? '✓' : ''}</div>
-      <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${extra}</small></div>
+      <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${extra}</small>${e.facturaId ? factura : ''}</div>
       <div class="acc"><strong>${dinero(e.monto)}</strong></div>
     </div>`;
   }
-  if (modo === 'historial') {
+  if (modo === 'historial' || modo === 'factura') {
     return `<div class="item"${e.fecha ? ` style="--dia:${COLOR_DIA[diaSemana(e.fecha)]}"` : ''}>
-      <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${e.fecha ? `<span class="dia-tag">${ABREV_DIA[diaSemana(e.fecha)]}</span> ${fechaBonita(e.fecha)}` : ''}</small></div>
-      <div class="acc"><strong>${dinero(e.monto)}</strong>${e.cobroId ? '' : `<button class="sec" data-act="pendiente" data-id="${e.id}">Deshacer</button>`}</div>
+      <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${e.fecha ? `<span class="dia-tag">${ABREV_DIA[diaSemana(e.fecha)]}</span> ${fechaBonita(e.fecha)}` : ''}</small>${factura}</div>
+      <div class="acc"><strong>${dinero(e.monto)}</strong>${modo === 'factura' || e.cobroId ? '' : `<button class="sec" data-act="pendiente" data-id="${e.id}">Deshacer</button>`}</div>
     </div>`;
   }
   return `<div class="item"${e.fecha ? ` style="--dia:${COLOR_DIA[diaSemana(e.fecha)]}"` : ''}>
-    <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${extra}</small></div>
+    <div class="info"><b>${esc(e.paciente || '—')}${esAseg(e) ? `<span class="chip">🛡 ${esc(e.aseguradora || 'Aseguradora')}</span>` : ''}</b><span>${esc(e.estudio)}</span><small>${extra}</small>${factura}</div>
     <div class="acc">
       <strong>${dinero(e.monto)}</strong>
       ${propio && c?.telefono ? botonLlamar(c.telefono, c.nombre) : ''}
@@ -551,6 +581,8 @@ function renderPanel() {
   }
 
   // Historial: cada cobro confirmado como una tarjeta
+  $('#filtro-pago').hidden = filtro === 'facturas';
+  if (filtro === 'facturas') return renderFacturas();
   if (filtro === 'cobrado') return renderHistorial(fp);
 
   const lista = estudios.filter(e => e.estatus === 'pendiente')
@@ -574,7 +606,7 @@ function renderPanel() {
           <small>${arr.length} estudio${arr.length > 1 ? 's' : ''}${def ? ' · cobra ' + esc(def.nombre) : ''}</small></div>
         <div class="der"><div style="text-align:right"><strong>${dinero(total)}</strong>${as && as !== total ? `<span class="sub-pago">${dinero(total - as)} part. · ${dinero(as)} aseg.</span>` : ''}</div>${def?.telefono ? botonLlamar(def.telefono, def.nombre) : ''}</div>
       </header>
-      <div class="cobrar-aqui"><button data-act="iniciar-cobro" data-h="${k}">💵 Cobrar aquí</button><button class="sec" data-act="copiar-wa" data-h="${k}">📋 WhatsApp</button></div>
+      <div class="cobrar-aqui"><button data-act="iniciar-cobro" data-h="${k}">💵 Cobrar aquí</button><button class="sec" data-act="copiar-wa" data-h="${k}">📋 WhatsApp</button>${h && arr.some(e => !e.facturaId) ? `<button class="sec" data-act="factura-hospital" data-h="${esc(k)}">Factura hospital</button>` : ''}</div>
       ${arr.map(e => itemHTML(e)).join('')}
     </article>`;
   }).join('') : `<p class="vacio">Nada pendiente por cobrar 🎉</p>`;
@@ -614,6 +646,7 @@ function renderHistorial(fp) {
         <div class="der"><div style="text-align:right"><small>Recibido</small><strong>${dinero(recibido)}</strong></div></div>
       </header>
       ${t.arr.map(e => itemHTML(e, 'historial')).join('')}
+      ${h && estudios.some(e => e.hospitalId === hId && e.estatus === 'cobrado' && !e.facturaId) ? `<div class="pie-cobro"><button class="sec" data-act="factura-hospital" data-h="${esc(hId)}" data-cobro="${esc(t.c?.id || '')}" data-fecha="${esc(t.fecha || '')}">Factura hospital</button></div>` : ''}
       ${t.c ? `<div class="pie-cobro"><button class="sec" data-act="deshacer-cobro" data-cobro="${t.c.id}">↩ Deshacer cobro</button></div>` : ''}
     </article>`;
   }).join('') : '<p class="vacio">Aún no hay cobros.</p>';
@@ -686,7 +719,7 @@ async function copiarWhatsApp(hId) {
 $('#filtro').onchange = renderPanel;
 $('#filtro-pago').onchange = renderPanel;
 $('#panel').onclick = e => {
-  const marca = e.target.closest('[data-marcar]');
+  const marca = !e.target.closest('button') && e.target.closest('[data-marcar]');
   if (marca && sesionCobro) {
     const id = marca.dataset.marcar;
     sesionCobro.sel = sesionCobro.sel.includes(id) ? sesionCobro.sel.filter(x => x !== id) : [...sesionCobro.sel, id];
@@ -698,6 +731,21 @@ $('#panel').onclick = e => {
   if (!b) return;
   const id = b.dataset.id;
   const act = b.dataset.act;
+  if (act === 'factura-estudio') {
+    const estudio = estudios.find(x => x.id === id);
+    if (estudio?.facturaId) abrirFactura(facturas.get(estudio.facturaId));
+    else if (estudio) abrirFactura(null, [estudio], null);
+  }
+  if (act === 'factura-editar') abrirFactura(facturas.get(id));
+  if (act === 'factura-hospital') {
+    const enHistorial = $('#filtro').value === 'cobrado';
+    const elegibles = estudios.filter(x => x.hospitalId === b.dataset.h && !x.facturaId
+      && x.estatus === (enHistorial ? 'cobrado' : 'pendiente'));
+    const preseleccion = x => !enHistorial || (b.dataset.cobro
+      ? x.cobroId === b.dataset.cobro
+      : !x.cobroId && (x.cobradoFecha || '') === b.dataset.fecha);
+    abrirFactura(null, elegibles, b.dataset.h, preseleccion);
+  }
   if (act === 'editar') abrirTarjeta(null, estudios.find(x => x.id === id));
   if (act === 'cobrado') {
     const e1 = estudios.find(x => x.id === id);
@@ -713,6 +761,114 @@ $('#panel').onclick = e => {
   if (act === 'deshacer-cobro') {
     const c = cobros.get(b.dataset.cobro);
     if (c && confirm(`¿Deshacer el cobro de ${c.n} paciente${c.n === 1 ? '' : 's'} (${dinero(c.recibido)})? Regresan a pendientes.`)) deshacerCobro(c.id);
+  }
+};
+
+// ---------- Facturas
+const dlgFactura = $('#dlg-factura');
+const formFactura = $('#form-factura');
+let edicionFactura;
+
+function renderFacturas() {
+  const orden = { solicitada: 0, emitida: 1, enviada: 2 };
+  const lista = [...facturas.values()].sort((a, b) =>
+    orden[a.estado] - orden[b.estado] || (b.solicitadaFecha || '').localeCompare(a.solicitadaFecha || ''));
+  $('#panel').innerHTML = lista.length ? lista.map(f => {
+    const incluidos = f.estudioIds.map(id => estudios.find(e => e.id === id)).filter(Boolean);
+    return `<article class="grupo"><header><div><h3>${ICONOS_FACTURA[f.estado]} ${ESTADOS_FACTURA[f.estado]} · ${esc(f.receptor)}</h3>
+      <small>Solicitó ${esc(f.solicitante)}${f.folio ? ' · Folio ' + esc(f.folio) : ''}</small></div>
+      <button class="sec" data-act="factura-editar" data-id="${esc(f.id)}">Ver factura</button></header>
+      ${incluidos.map(e => itemHTML(e, 'factura')).join('')}</article>`;
+  }).join('') : '<p class="vacio">Aún no hay solicitudes de factura.</p>';
+}
+
+function abrirFactura(f, candidatos = [], hospitalId, preseleccion = () => true) {
+  if (!f && !candidatos.length) return;
+  edicionFactura = { f, hospitalId, uid };
+  const incluidos = f ? f.estudioIds.map(id => estudios.find(e => e.id === id)).filter(Boolean) : candidatos;
+  const receptor = f?.receptor || (hospitalId ? hospitales.get(hospitalId)?.nombre : candidatos[0]?.paciente);
+  formFactura.reset();
+  $('#factura-titulo').textContent = f ? 'Seguimiento de factura' : hospitalId ? 'Factura para hospital' : 'Factura individual';
+  $('#factura-receptor').value = receptor || '';
+  $('#factura-solicitante').value = f?.solicitante || receptor || '';
+  $('#factura-estado').value = f?.estado || 'solicitada';
+  $('#factura-folio').value = f?.folio || '';
+  $('#factura-fechas').textContent = f ? [
+    f.solicitadaFecha && 'Solicitud ' + fechaBonita(f.solicitadaFecha),
+    f.emitidaFecha && 'Emisión ' + fechaBonita(f.emitidaFecha),
+    f.enviadaFecha && 'Envío ' + fechaBonita(f.enviadaFecha)
+  ].filter(Boolean).join(' · ') : '';
+  $('#factura-estudios').innerHTML = incluidos.map(e => `<label class="factura-estudio">
+    <input type="checkbox" name="estudioFactura" value="${esc(e.id)}" ${f || preseleccion(e) ? 'checked' : ''} ${f || !hospitalId ? 'disabled' : ''}>
+    <span>${esc(e.paciente || '—')} · ${esc(e.estudio)}${e.fecha ? ' · ' + fechaBonita(e.fecha) : ''}</span><strong>${dinero(e.monto)}</strong>
+    </label>`).join('');
+  renderTotalFactura();
+  dlgFactura.showModal();
+}
+
+function idsFactura() {
+  return [...formFactura.querySelectorAll('[name="estudioFactura"]:checked')].map(i => i.value);
+}
+
+function renderTotalFactura() {
+  const ids = idsFactura();
+  $('#factura-total').textContent = `${ids.length} estudio(s) · Honorarios ${dinero(sumar(estudios.filter(e => ids.includes(e.id))))}`;
+}
+
+$('#factura-estudios').onchange = renderTotalFactura;
+$('#factura-cancelar').onclick = () => dlgFactura.close();
+dlgFactura.addEventListener('cancel', e => { if ($('#factura-guardar').disabled) e.preventDefault(); });
+
+formFactura.onsubmit = async event => {
+  event.preventDefault();
+  const { f, hospitalId, uid: propietario } = edicionFactura;
+  if (!uid || uid !== propietario) return;
+  const ids = idsFactura();
+  const estado = $('#factura-estado').value;
+  const solicitante = $('#factura-solicitante').value.trim();
+  const receptor = $('#factura-receptor').value.trim();
+  const folio = $('#factura-folio').value.trim();
+  if (!solicitante || !receptor || (!f && !ids.length)) {
+    alert('Indica quién solicitó la factura, a quién va dirigida y qué estudios incluye.');
+    return;
+  }
+  if (!f && ids.length > 499) { alert('Selecciona hasta 499 estudios por factura.'); return; }
+  const ref = f ? doc(col('facturas'), f.id) : doc(col('facturas'));
+  const refs = f ? [] : ids.map(id => doc(col('estudios'), id));
+  const guardar = $('#factura-guardar');
+  guardar.disabled = true;
+  $('#factura-cancelar').disabled = true;
+  try {
+    await runTransaction(db, async tx => {
+      const actual = f ? (await tx.get(ref)).data() : null;
+      if (f && (!actual || actual.revision !== f.revision)) {
+        throw Error('La factura cambió en otro dispositivo. Ciérrala y vuelve a abrirla.');
+      }
+      const docs = await Promise.all(refs.map(r => tx.get(r)));
+      if (docs.some(d => !d.exists() || d.data().facturaId || (hospitalId && d.data().hospitalId !== hospitalId))) {
+        throw Error('Algún estudio cambió o ya tiene factura. Vuelve a abrir la selección.');
+      }
+      const hoy = hoyISO();
+      const datos = {
+        estado, solicitante, receptor, folio,
+        revision: (actual?.revision || 0) + 1,
+        solicitadaFecha: actual?.solicitadaFecha || hoy,
+        emitidaFecha: estado === 'solicitada' ? null : actual?.emitidaFecha || hoy,
+        enviadaFecha: estado === 'enviada' ? actual?.enviadaFecha || hoy : null
+      };
+      if (f) tx.update(ref, datos);
+      else {
+        tx.set(ref, { ...datos, estudioIds: ids, hospitalId: hospitalId || docs[0].data().hospitalId || null,
+          tipo: hospitalId ? 'hospital' : 'individual' });
+        for (const estudioRef of refs) tx.update(estudioRef, { facturaId: ref.id });
+      }
+    });
+    dlgFactura.close();
+  } catch (error) {
+    err(error);
+  } finally {
+    guardar.disabled = false;
+    $('#factura-cancelar').disabled = false;
   }
 };
 

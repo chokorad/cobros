@@ -77,3 +77,7 @@ initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider('TU_SITE_KEY
 - **Modelo:** se cambia en `config.js` (`MODELO`).
 - **Íconos:** `icon-192.png`, `icon-512.png` (maskable), `apple-touch-icon.png` y `favicon-32.png`, generados del logo neón.
 - Al actualizar archivos, sube el número en `CACHE` de `sw.js` (`cobros-v2`…) para forzar la recarga.
+
+## Invoice tracking
+
+Open a study’s **Factura** button to record who requested the invoice, the recipient and an optional folio or UUID. Update its status to **Emitida** after issuing it and **Enviada** after delivery. Use **Pendientes → Facturas** to find open requests. For a hospital invoice, use **Factura hospital** in a hospital group or a payment card. A payment card preselects its eligible studies and lets you include or exclude other paid studies from the same hospital. Issue the fiscal document and deliver it through your existing provider.
