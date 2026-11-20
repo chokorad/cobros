@@ -162,6 +162,17 @@
   .fecha-rapida{display:flex;gap:8px;margin-top:8px}
   .fecha-rapida button{flex:1}
   #fecha-texto{display:block;margin-top:4px}
+  #form-factura{padding:16px}
+  #form-factura h2{margin:0 0 8px}
+  .factura-chip{align-self:flex-start;margin-top:5px}
+  .cobrar-aqui{flex-wrap:wrap}
+  .factura-chip.solicitada{color:#fcd34d}
+  .factura-chip.emitida{color:#93c5fd}
+  .factura-chip.enviada{color:#86efac}
+  #factura-estudios{max-height:30dvh;overflow:auto;margin:8px 0}
+  .factura-estudio{display:flex;align-items:center;gap:8px;padding:6px 0}
+  .factura-estudio input{width:auto;flex:none}
+  .factura-estudio span{flex:1}
 </style>
 </head>
 <body data-auth="cargando">
@@ -209,6 +220,7 @@
     <select id="filtro">
       <option value="pendiente">Pendientes</option>
       <option value="cobrado">Cobrados</option>
+      <option value="facturas">Facturas</option>
     </select>
     <select id="filtro-pago">
       <option value="">Todos</option>
@@ -366,6 +378,30 @@
   </form>
 </dialog>
 
+<dialog id="dlg-factura">
+  <form id="form-factura">
+    <h2 id="factura-titulo">Factura</h2>
+    <label for="factura-receptor">¿A nombre de quién va?</label>
+    <input id="factura-receptor" required maxlength="160">
+    <label for="factura-solicitante">¿Quién la solicitó?</label>
+    <input id="factura-solicitante" required maxlength="160">
+    <label for="factura-estado">Estado</label>
+    <select id="factura-estado">
+      <option value="solicitada">Solicitada</option>
+      <option value="emitida">Emitida</option>
+      <option value="enviada">Enviada</option>
+    </select>
+    <label for="factura-folio">Folio o UUID (opcional)</label>
+    <input id="factura-folio" maxlength="100">
+    <div id="factura-estudios"></div>
+    <small id="factura-total" aria-live="polite"></small>
+    <div><small id="factura-fechas"></small></div>
+    <div class="botones">
+      <button type="button" class="sec" id="factura-cancelar">Volver</button>
+      <button class="grow" id="factura-guardar">Guardar factura</button>
+    </div>
+  </form>
+</dialog>
 <script type="module" src="app.js"></script>
 </body>
 </html>
