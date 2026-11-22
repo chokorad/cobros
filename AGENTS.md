@@ -5,3 +5,5 @@ Personal Spanish-language honors tracking PWA for studies, settlements and invoi
 Treat invoice delivery addresses as private user data. Never put them in public URLs, client logs, or test fixtures copied from production.
 
 Hospital invoice profiles are optional private defaults. Preserve existing invoice and study links when editing the profile.
+
+Keep the visible Settings release number in sync with the service-worker cache.

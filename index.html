@@ -34,6 +34,7 @@
   header.top button.act{background:var(--panel);color:var(--txt)}
   header.top{gap:4px;padding:10px 10px}
   header.top button{font-size:.9rem}
+  @media(max-width:420px){header.top button{font-size:.75rem}header.top button.solo-icono{flex-basis:32px}}
   header.top button.solo-icono{flex:0 0 44px}
   body[data-auth="no"] header.top, body[data-auth="no"] #barra-total, body[data-auth="no"] .vista,
   body[data-auth="cargando"] header.top, body[data-auth="cargando"] #barra-total, body[data-auth="cargando"] .vista{display:none!important}
@@ -192,6 +193,7 @@
 <header class="top">
   <button data-ir="dictar">🎙 Dictar</button>
   <button data-ir="panel">📋 Pendientes</button>
+  <button data-ir="facturas">Facturas</button>
   <button data-ir="produccion">📊 Producción</button>
   <button data-ir="ajustes" class="solo-icono" aria-label="Ajustes" title="Ajustes">⚙</button>
 </header>
@@ -255,6 +257,7 @@
 </section>
 
 <section class="vista" id="v-ajustes" hidden>
+  <p><small>Cobros v15</small></p>
   <div class="caja">
     <h2>Hospitales</h2>
     <div id="lista-hosp"></div>
@@ -401,6 +404,16 @@
       <input id="factura-concepto" maxlength="200">
       <label for="factura-monto">Monto a facturar (MXN)</label>
       <input id="factura-monto" type="number" min="0.01" step="0.01" placeholder="Total de los estudios seleccionados">
+      <label for="factura-neto">Neto a recibir con IVA exento (MXN)</label>
+      <input id="factura-neto" type="number" min="0.01" step="0.01">
+      <label for="factura-isr">Retención de ISR para calcular la base</label>
+      <select id="factura-isr">
+        <option value="">Selecciona la tasa confirmada</option>
+        <option value="10">10% · Servicios profesionales</option>
+        <option value="1.25">1.25% · RESICO persona física</option>
+      </select>
+      <button type="button" class="sec" id="factura-calcular">Calcular base</button>
+      <small id="factura-calculo" aria-live="polite"></small>
       <label class="factura-estudio" id="factura-recordar-label">
         <input type="checkbox" id="factura-recordar" checked> Guardar estos datos como perfil del hospital
       </label>

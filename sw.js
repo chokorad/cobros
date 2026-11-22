@@ -1,4 +1,4 @@
-const CACHE = 'cobros-v14';
+const CACHE = 'cobros-v15';
 const SHELL = ['./', 'index.html', 'app.js', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon-32.png'];
 
 self.addEventListener('install', e => {

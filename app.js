@@ -118,8 +118,12 @@ onAuthStateChanged(auth, user => {
 
 // ---------- Navegación
 function ir(v) {
-  if (!['dictar', 'panel', 'produccion', 'ajustes'].includes(v)) v = 'dictar';
-  document.querySelectorAll('.vista').forEach(s => { s.hidden = s.id !== 'v-' + v; });
+  if (!['dictar', 'panel', 'facturas', 'produccion', 'ajustes'].includes(v)) v = 'dictar';
+  if (v === 'facturas') $('#filtro').value = 'facturas';
+  if (v === 'panel' && $('#filtro').value === 'facturas') $('#filtro').value = 'pendiente';
+  const vista = v === 'facturas' ? 'panel' : v;
+  document.querySelectorAll('.vista').forEach(s => { s.hidden = s.id !== 'v-' + vista; });
+  if (vista === 'panel') renderPanel();
   document.querySelectorAll('[data-ir]').forEach(b => b.classList.toggle('act', b.dataset.ir === v));
   if (location.hash.slice(1) !== v) history.replaceState(null, '', '#' + v);
 }
@@ -563,6 +567,9 @@ function renderPanel() {
   const filtro = $('#filtro').value;
   const fp = $('#filtro-pago').value;
 
+  $('#filtro-pago').hidden = filtro === 'facturas';
+  if (filtro === 'facturas') return renderFacturas();
+
   // Modo cobro: solo el hospital que estás cobrando
   if (sesionCobro) {
     const hId = sesionCobro.hospitalId;
@@ -581,8 +588,6 @@ function renderPanel() {
   }
 
   // Historial: cada cobro confirmado como una tarjeta
-  $('#filtro-pago').hidden = filtro === 'facturas';
-  if (filtro === 'facturas') return renderFacturas();
   if (filtro === 'cobrado') return renderHistorial(fp);
 
   const lista = estudios.filter(e => e.estatus === 'pendiente')
@@ -716,7 +721,7 @@ async function copiarWhatsApp(hId) {
   else prompt('Copia este texto:', texto);
 }
 
-$('#filtro').onchange = renderPanel;
+$('#filtro').onchange = () => ir($('#filtro').value === 'facturas' ? 'facturas' : 'panel');
 $('#filtro-pago').onchange = renderPanel;
 $('#panel').onclick = e => {
   const marca = !e.target.closest('button') && e.target.closest('[data-marcar]');
@@ -825,6 +830,9 @@ function abrirFactura(f, candidatos = [], hospitalId, preseleccion = () => true)
     $('#factura-' + campo).value = datosReceptor?.datosFiscales?.[campo] || '';
   }
   $('#factura-monto').value = f?.montoFactura ?? '';
+  $('#factura-neto').value = f?.calculoExento?.neto ?? '';
+  $('#factura-isr').value = f?.calculoExento?.tasa ?? '';
+  actualizarCalculoFactura();
   $('#factura-estado').value = f?.estado || 'solicitada';
   $('#factura-folio').value = f?.folio || '';
   $('#factura-fechas').textContent = f ? [
@@ -851,6 +859,37 @@ function renderTotalFactura() {
   $('#factura-total').textContent = `${ids.length} estudio(s) · Honorarios ${dinero(total)}`;
 }
 
+function calcularFacturaExenta() {
+  const tasa = Number($('#factura-isr').value);
+  const input = $('#factura-neto');
+  const neto = Math.round(input.valueAsNumber * 100);
+  if (![10, 1.25].includes(tasa) || !input.validity.valid || !Number.isSafeInteger(neto) || neto <= 0) return null;
+  const base = Math.round(neto / (1 - tasa / 100));
+  const retencion = Math.round(base * tasa / 100);
+  return { tasa, base: base / 100, retencion: retencion / 100, neto: neto / 100 };
+}
+
+function actualizarCalculoFactura() {
+  const calculo = calcularFacturaExenta();
+  const coincide = calculo && Number($('#factura-monto').value) === calculo.base;
+  $('#factura-calculo').textContent = coincide
+    ? `IVA exento · ISR retenido ${dinero(calculo.retencion)} · Neto ${dinero(calculo.neto)}` : '';
+  return coincide ? calculo : null;
+}
+
+$('#factura-calcular').onclick = () => {
+  const calculo = calcularFacturaExenta();
+  if (!calculo) {
+    alert('Indica un neto válido y la tasa de ISR confirmada.');
+    return;
+  }
+  $('#factura-monto').value = calculo.base.toFixed(2);
+  actualizarCalculoFactura();
+};
+for (const id of ['factura-neto', 'factura-isr', 'factura-monto']) {
+  $('#' + id).oninput = actualizarCalculoFactura;
+}
+
 $('#factura-estudios').onchange = renderTotalFactura;
 $('#factura-copiar').onclick = async () => {
   if (!formFactura.reportValidity()) return;
@@ -862,6 +901,9 @@ $('#factura-copiar').onclick = async () => {
   const borrador = campos.map(([etiqueta, campo]) => etiqueta + ': ' + $('#factura-' + campo).value.trim());
   const monto = $('#factura-monto').value || sumar(estudios.filter(e => ids.includes(e.id)));
   borrador.push('Monto (MXN): ' + Number(monto).toFixed(2));
+  const calculo = actualizarCalculoFactura();
+  if (calculo) borrador.push('IVA: Exento', `ISR retenido (${calculo.tasa}%): ${calculo.retencion.toFixed(2)}`,
+    'Neto (MXN): ' + calculo.neto.toFixed(2));
   try {
     await navigator.clipboard.writeText(borrador.join('\n'));
     $('#factura-copiar').textContent = 'Borrador copiado';
@@ -894,6 +936,7 @@ formFactura.onsubmit = async event => {
     return [campo, campo === 'rfc' || campo === 'uso' ? valor.toUpperCase() : valor];
   }));
   const monto = $('#factura-monto').value;
+  const calculoExento = esHospital ? actualizarCalculoFactura() : null;
   const perfilRef = recordar ? doc(col('hospitales'), hospitalId) : null;
   const ref = f ? doc(col('facturas'), f.id) : doc(col('facturas'));
   const refs = f ? [] : ids.map(id => doc(col('estudios'), id));
@@ -915,6 +958,7 @@ formFactura.onsubmit = async event => {
         estado, solicitante, receptor, folio, correoEntrega,
         ...(esHospital ? {
           datosFiscales,
+          calculoExento,
           montoFactura: monto ? Number(monto) : f?.montoFactura ?? Math.round(sumar(docs.map(d => d.data())) * 100) / 100
         } : {}),
         revision: (actual?.revision || 0) + 1,
