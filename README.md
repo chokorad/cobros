@@ -81,3 +81,7 @@ initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider('TU_SITE_KEY
 ## Invoice tracking
 
 Open a study’s **Factura** button to record who requested the invoice, the recipient and an optional folio or UUID. Update its status to **Emitida** after issuing it and **Enviada** after delivery. Use **Pendientes → Facturas** to find open requests. For a hospital invoice, use **Factura hospital** in a hospital group or a payment card. A payment card preselects its eligible studies and lets you include or exclude other paid studies from the same hospital. Issue the fiscal document and deliver it through your existing provider.
+
+You can save a delivery email from the private Facturas editor. The current editor stores the address for follow-up.
+
+From Facturas, select a hospital with eligible studies. Select the studies, review the billing details and amount, and save the draft. Use the profile checkbox to save the defaults. The SAT link opens the official service and Copy draft puts the billing data on your clipboard.

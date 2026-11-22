@@ -385,6 +385,26 @@
     <input id="factura-receptor" required maxlength="160">
     <label for="factura-solicitante">¿Quién la solicitó?</label>
     <input id="factura-solicitante" required maxlength="160">
+    <label for="factura-correo">Correo para recibir la factura</label>
+    <input id="factura-correo" type="email" autocomplete="off" maxlength="254">
+    <fieldset id="factura-perfil">
+      <legend>Datos de facturación</legend>
+      <label for="factura-rfc">RFC</label>
+      <input id="factura-rfc" maxlength="13" autocapitalize="characters">
+      <label for="factura-cp">Código postal fiscal</label>
+      <input id="factura-cp" inputmode="numeric" maxlength="5" pattern="[0-9]{5}">
+      <label for="factura-regimen">Clave del régimen fiscal</label>
+      <input id="factura-regimen" inputmode="numeric" maxlength="3" pattern="[0-9]{3}">
+      <label for="factura-uso">Clave del uso del CFDI</label>
+      <input id="factura-uso" maxlength="3" autocapitalize="characters">
+      <label for="factura-concepto">Concepto</label>
+      <input id="factura-concepto" maxlength="200">
+      <label for="factura-monto">Monto a facturar (MXN)</label>
+      <input id="factura-monto" type="number" min="0.01" step="0.01" placeholder="Total de los estudios seleccionados">
+      <label class="factura-estudio" id="factura-recordar-label">
+        <input type="checkbox" id="factura-recordar" checked> Guardar estos datos como perfil del hospital
+      </label>
+    </fieldset>
     <label for="factura-estado">Estado</label>
     <select id="factura-estado">
       <option value="solicitada">Solicitada</option>
@@ -395,6 +415,10 @@
     <input id="factura-folio" maxlength="100">
     <div id="factura-estudios"></div>
     <small id="factura-total" aria-live="polite"></small>
+    <div id="factura-acciones-sat" class="botones" hidden>
+      <button type="button" class="sec" id="factura-copiar">Copiar borrador</button>
+      <a href="https://www.sat.gob.mx/gobmx/Paginas/SAT-07-009.html" target="_blank" rel="noopener noreferrer">Abrir facturación del SAT</a>
+    </div>
     <div><small id="factura-fechas"></small></div>
     <div class="botones">
       <button type="button" class="sec" id="factura-cancelar">Volver</button>
