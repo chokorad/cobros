@@ -737,6 +737,15 @@ $('#panel').onclick = e => {
     else if (estudio) abrirFactura(null, [estudio], null);
   }
   if (act === 'factura-editar') abrirFactura(facturas.get(id));
+  if (act === 'factura-perfil-hospital') {
+    const elegibles = estudios.filter(x => x.hospitalId === b.dataset.h && !x.facturaId
+      && ['cobrado', 'pendiente'].includes(x.estatus));
+    if (!elegibles.length) {
+      alert('Este hospital ya tiene vinculados todos sus estudios disponibles.');
+      return;
+    }
+    abrirFactura(null, elegibles, b.dataset.h, () => false);
+  }
   if (act === 'factura-hospital') {
     const enHistorial = $('#filtro').value === 'cobrado';
     const elegibles = estudios.filter(x => x.hospitalId === b.dataset.h && !x.facturaId
@@ -768,29 +777,54 @@ $('#panel').onclick = e => {
 const dlgFactura = $('#dlg-factura');
 const formFactura = $('#form-factura');
 let edicionFactura;
+const camposFiscales = ['rfc', 'cp', 'regimen', 'uso', 'concepto'];
 
 function renderFacturas() {
   const orden = { solicitada: 0, emitida: 1, enviada: 2 };
   const lista = [...facturas.values()].sort((a, b) =>
     orden[a.estado] - orden[b.estado] || (b.solicitadaFecha || '').localeCompare(a.solicitadaFecha || ''));
-  $('#panel').innerHTML = lista.length ? lista.map(f => {
+  const disponibles = new Set(estudios.filter(e => !e.facturaId
+    && ['cobrado', 'pendiente'].includes(e.estatus)).map(e => e.hospitalId));
+  const opciones = [...hospitales.values()].filter(h => disponibles.has(h.id))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const accesos = opciones.length ? `<article class="grupo"><h3>Nueva factura de hospital</h3>
+    <div class="botones">${opciones.map(h => `<button type="button" class="sec"
+      data-act="factura-perfil-hospital" data-h="${esc(h.id)}">${esc(h.nombre)}</button>`).join('')}</div></article>` : '';
+  const historial = lista.length ? lista.map(f => {
     const incluidos = f.estudioIds.map(id => estudios.find(e => e.id === id)).filter(Boolean);
     return `<article class="grupo"><header><div><h3>${ICONOS_FACTURA[f.estado]} ${ESTADOS_FACTURA[f.estado]} · ${esc(f.receptor)}</h3>
       <small>Solicitó ${esc(f.solicitante)}${f.folio ? ' · Folio ' + esc(f.folio) : ''}</small></div>
       <button class="sec" data-act="factura-editar" data-id="${esc(f.id)}">Ver factura</button></header>
       ${incluidos.map(e => itemHTML(e, 'factura')).join('')}</article>`;
   }).join('') : '<p class="vacio">Aún no hay solicitudes de factura.</p>';
+  $('#panel').innerHTML = accesos + historial;
 }
 
 function abrirFactura(f, candidatos = [], hospitalId, preseleccion = () => true) {
   if (!f && !candidatos.length) return;
-  edicionFactura = { f, hospitalId, uid };
+  const hospital = hospitales.get(f?.hospitalId || hospitalId);
+  const esHospital = f ? f.tipo === 'hospital' : Boolean(hospitalId);
+  const ultima = esHospital && !f ? [...facturas.values()].filter(item =>
+    item.tipo === 'hospital' && item.hospitalId === hospitalId && item.emitidaFecha)
+    .sort((a, b) => b.emitidaFecha.localeCompare(a.emitidaFecha))[0] : null;
+  const datosReceptor = f || (esHospital ? hospital?.perfilFactura || ultima : null);
+  edicionFactura = { f, hospitalId: f?.hospitalId || hospitalId, uid, esHospital };
   const incluidos = f ? f.estudioIds.map(id => estudios.find(e => e.id === id)).filter(Boolean) : candidatos;
-  const receptor = f?.receptor || (hospitalId ? hospitales.get(hospitalId)?.nombre : candidatos[0]?.paciente);
+  const receptor = datosReceptor?.receptor || (esHospital ? hospital?.nombre : candidatos[0]?.paciente);
   formFactura.reset();
   $('#factura-titulo').textContent = f ? 'Seguimiento de factura' : hospitalId ? 'Factura para hospital' : 'Factura individual';
   $('#factura-receptor').value = receptor || '';
-  $('#factura-solicitante').value = f?.solicitante || receptor || '';
+  $('#factura-solicitante').value = datosReceptor?.solicitante || receptor || '';
+  $('#factura-correo').value = datosReceptor?.correoEntrega || '';
+  $('#factura-perfil').hidden = !esHospital;
+  $('#factura-recordar-label').hidden = !hospital;
+  $('#factura-recordar').checked = !f;
+  $('#factura-acciones-sat').hidden = !esHospital;
+  $('#factura-copiar').textContent = 'Copiar borrador';
+  for (const campo of camposFiscales) {
+    $('#factura-' + campo).value = datosReceptor?.datosFiscales?.[campo] || '';
+  }
+  $('#factura-monto').value = f?.montoFactura ?? '';
   $('#factura-estado').value = f?.estado || 'solicitada';
   $('#factura-folio').value = f?.folio || '';
   $('#factura-fechas').textContent = f ? [
@@ -812,27 +846,55 @@ function idsFactura() {
 
 function renderTotalFactura() {
   const ids = idsFactura();
-  $('#factura-total').textContent = `${ids.length} estudio(s) · Honorarios ${dinero(sumar(estudios.filter(e => ids.includes(e.id))))}`;
+  const total = sumar(estudios.filter(e => ids.includes(e.id)));
+  $('#factura-monto').placeholder = total > 0 ? dinero(total) : 'Selecciona los estudios';
+  $('#factura-total').textContent = `${ids.length} estudio(s) · Honorarios ${dinero(total)}`;
 }
 
 $('#factura-estudios').onchange = renderTotalFactura;
+$('#factura-copiar').onclick = async () => {
+  if (!formFactura.reportValidity()) return;
+  const ids = idsFactura();
+  const campos = [
+    ['Nombre o razón social', 'receptor'], ['RFC', 'rfc'], ['Código postal fiscal', 'cp'],
+    ['Régimen fiscal', 'regimen'], ['Uso del CFDI', 'uso'], ['Concepto', 'concepto']
+  ];
+  const borrador = campos.map(([etiqueta, campo]) => etiqueta + ': ' + $('#factura-' + campo).value.trim());
+  const monto = $('#factura-monto').value || sumar(estudios.filter(e => ids.includes(e.id)));
+  borrador.push('Monto (MXN): ' + Number(monto).toFixed(2));
+  try {
+    await navigator.clipboard.writeText(borrador.join('\n'));
+    $('#factura-copiar').textContent = 'Borrador copiado';
+  } catch {
+    alert('No se pudo copiar el borrador. Puedes copiar los datos desde la ficha.');
+  }
+};
 $('#factura-cancelar').onclick = () => dlgFactura.close();
 dlgFactura.addEventListener('cancel', e => { if ($('#factura-guardar').disabled) e.preventDefault(); });
 
 formFactura.onsubmit = async event => {
   event.preventDefault();
-  const { f, hospitalId, uid: propietario } = edicionFactura;
+  const { f, hospitalId, uid: propietario, esHospital } = edicionFactura;
   if (!uid || uid !== propietario) return;
   const ids = idsFactura();
   const estado = $('#factura-estado').value;
   const solicitante = $('#factura-solicitante').value.trim();
   const receptor = $('#factura-receptor').value.trim();
   const folio = $('#factura-folio').value.trim();
+  const correoEntrega = $('#factura-correo').value.trim();
   if (!solicitante || !receptor || (!f && !ids.length)) {
     alert('Indica quién solicitó la factura, a quién va dirigida y qué estudios incluye.');
     return;
   }
-  if (!f && ids.length > 499) { alert('Selecciona hasta 499 estudios por factura.'); return; }
+  const recordar = esHospital && hospitalId && $('#factura-recordar').checked;
+  const limite = recordar ? 498 : 499;
+  if (!f && ids.length > limite) { alert(`Selecciona hasta ${limite} estudios por factura.`); return; }
+  const datosFiscales = Object.fromEntries(camposFiscales.map(campo => {
+    const valor = $('#factura-' + campo).value.trim();
+    return [campo, campo === 'rfc' || campo === 'uso' ? valor.toUpperCase() : valor];
+  }));
+  const monto = $('#factura-monto').value;
+  const perfilRef = recordar ? doc(col('hospitales'), hospitalId) : null;
   const ref = f ? doc(col('facturas'), f.id) : doc(col('facturas'));
   const refs = f ? [] : ids.map(id => doc(col('estudios'), id));
   const guardar = $('#factura-guardar');
@@ -850,7 +912,11 @@ formFactura.onsubmit = async event => {
       }
       const hoy = hoyISO();
       const datos = {
-        estado, solicitante, receptor, folio,
+        estado, solicitante, receptor, folio, correoEntrega,
+        ...(esHospital ? {
+          datosFiscales,
+          montoFactura: monto ? Number(monto) : f?.montoFactura ?? Math.round(sumar(docs.map(d => d.data())) * 100) / 100
+        } : {}),
         revision: (actual?.revision || 0) + 1,
         solicitadaFecha: actual?.solicitadaFecha || hoy,
         emitidaFecha: estado === 'solicitada' ? null : actual?.emitidaFecha || hoy,
@@ -862,6 +928,7 @@ formFactura.onsubmit = async event => {
           tipo: hospitalId ? 'hospital' : 'individual' });
         for (const estudioRef of refs) tx.update(estudioRef, { facturaId: ref.id });
       }
+      if (perfilRef) tx.update(perfilRef, { perfilFactura: { receptor, solicitante, correoEntrega, datosFiscales } });
     });
     dlgFactura.close();
   } catch (error) {

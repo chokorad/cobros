@@ -1,3 +1,7 @@
 # Deploy
 
 GitHub Pages serves the repository root from `main`. No build step is required. For local review, run `python -m http.server 8000` from the repository root. Use an authorized local domain and separate Firebase configuration for authenticated integration tests. Existing per-user Firestore rules cover the invoices collection. Verify the service-worker cache version after deployment.
+
+The invoice email field uses the existing private Firestore path and requires no migration. Public intake, private attachments and email delivery require a separate backend deployment when implemented.
+
+Hospital profiles use the existing private hospitals path and need no rules or migration changes. The SAT link is an external navigation.
