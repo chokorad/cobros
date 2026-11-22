@@ -7,3 +7,5 @@ Treat invoice delivery addresses as private user data. Never put them in public 
 Hospital invoice profiles are optional private defaults. Preserve existing invoice and study links when editing the profile.
 
 Keep the visible Settings release number in sync with the service-worker cache.
+
+Keep profile-only saves independent of study and invoice writes.

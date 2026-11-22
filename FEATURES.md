@@ -11,3 +11,5 @@ The private invoice editor stores a delivery email for individual and hospital i
 Facturas lists hospitals with eligible studies. Start from a hospital, select studies and use their total or enter a different amount. Save or update reusable billing details explicitly. Without a saved profile, the editor can reuse data from the latest issued hospital invoice. Copy the draft and open the official SAT service for manual completion.
 
 The main navigation links directly to Facturas. Settings shows the release number. Hospital drafts can calculate the gross base for an exempt invoice using an explicitly selected ISR rate.
+
+Save hospital defaults directly from the draft using Guardar solo perfil, without creating an invoice.

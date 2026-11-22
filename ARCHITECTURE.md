@@ -9,3 +9,5 @@ Invoice records can include `correoEntrega`, an optional string such as `billing
 A hospital may store `perfilFactura: { receptor, solicitante, correoEntrega, datosFiscales: { rfc, cp, regimen, uso, concepto } }`. Hospital invoice documents store a snapshot of those editable billing fields and `montoFactura` in MXN. Profile and invoice writes occur in one transaction when selected. Amount, folio, status and study selection are specific to each invoice.
 
 Hospital drafts may store `calculoExento` with `base`, `neto`, `retencion` in MXN and `tasa` as a percentage. It is saved only when the entered base matches the calculator.
+
+A profile-only save updates the existing hospital document and stores the optional withholding rate, without a draft amount.

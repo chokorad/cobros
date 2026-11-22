@@ -87,3 +87,5 @@ You can save a delivery email from the private Facturas editor. The current edit
 From Facturas, select a hospital with eligible studies. Select the studies, review the billing details and amount, and save the draft. Use the profile checkbox to save the defaults. The SAT link opens the official service and Copy draft puts the billing data on your clipboard.
 
 Open Facturas from the toolbar. In a hospital draft, enter the target net and select the confirmed rate to calculate the base for an exempt invoice.
+
+Use Guardar solo perfil to reuse billing defaults and the withholding rate on a new draft.

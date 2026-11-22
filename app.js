@@ -823,6 +823,8 @@ function abrirFactura(f, candidatos = [], hospitalId, preseleccion = () => true)
   $('#factura-correo').value = datosReceptor?.correoEntrega || '';
   $('#factura-perfil').hidden = !esHospital;
   $('#factura-recordar-label').hidden = !hospital;
+  $('#factura-guardar-perfil').hidden = !hospital;
+  $('#factura-perfil-aviso').textContent = '';
   $('#factura-recordar').checked = !f;
   $('#factura-acciones-sat').hidden = !esHospital;
   $('#factura-copiar').textContent = 'Copiar borrador';
@@ -831,7 +833,7 @@ function abrirFactura(f, candidatos = [], hospitalId, preseleccion = () => true)
   }
   $('#factura-monto').value = f?.montoFactura ?? '';
   $('#factura-neto').value = f?.calculoExento?.neto ?? '';
-  $('#factura-isr').value = f?.calculoExento?.tasa ?? '';
+  $('#factura-isr').value = f?.calculoExento?.tasa ?? datosReceptor?.tasaRetencion ?? '';
   actualizarCalculoFactura();
   $('#factura-estado').value = f?.estado || 'solicitada';
   $('#factura-folio').value = f?.folio || '';
@@ -914,6 +916,44 @@ $('#factura-copiar').onclick = async () => {
 $('#factura-cancelar').onclick = () => dlgFactura.close();
 dlgFactura.addEventListener('cancel', e => { if ($('#factura-guardar').disabled) e.preventDefault(); });
 
+function datosPerfilFactura() {
+  const datosFiscales = Object.fromEntries(camposFiscales.map(campo => {
+    const valor = $('#factura-' + campo).value.trim();
+    return [campo, campo === 'rfc' || campo === 'uso' ? valor.toUpperCase() : valor];
+  }));
+  const tasa = Number($('#factura-isr').value);
+  return {
+    receptor: $('#factura-receptor').value.trim(),
+    solicitante: $('#factura-solicitante').value.trim(),
+    correoEntrega: $('#factura-correo').value.trim(),
+    datosFiscales,
+    tasaRetencion: [10, 1.25].includes(tasa) ? tasa : null
+  };
+}
+
+$('#factura-guardar-perfil').onclick = async () => {
+  const { uid: propietario, hospitalId, esHospital } = edicionFactura;
+  if (!uid || uid !== propietario || !esHospital || !hospitalId) return;
+  const perfilFactura = datosPerfilFactura();
+  if (!perfilFactura.receptor || !perfilFactura.solicitante) {
+    $('#factura-perfil-aviso').textContent = 'Indica el receptor y quién solicitó la factura.';
+    return;
+  }
+  for (const campo of ['factura-correo', 'factura-cp', 'factura-regimen']) {
+    if (!$('#' + campo).reportValidity()) return;
+  }
+  const boton = $('#factura-guardar-perfil');
+  boton.disabled = true;
+  try {
+    await updateDoc(doc(col('hospitales'), hospitalId), { perfilFactura });
+    $('#factura-perfil-aviso').textContent = 'Perfil guardado.';
+  } catch (error) {
+    err(error);
+  } finally {
+    boton.disabled = false;
+  }
+};
+
 formFactura.onsubmit = async event => {
   event.preventDefault();
   const { f, hospitalId, uid: propietario, esHospital } = edicionFactura;
@@ -931,10 +971,7 @@ formFactura.onsubmit = async event => {
   const recordar = esHospital && hospitalId && $('#factura-recordar').checked;
   const limite = recordar ? 498 : 499;
   if (!f && ids.length > limite) { alert(`Selecciona hasta ${limite} estudios por factura.`); return; }
-  const datosFiscales = Object.fromEntries(camposFiscales.map(campo => {
-    const valor = $('#factura-' + campo).value.trim();
-    return [campo, campo === 'rfc' || campo === 'uso' ? valor.toUpperCase() : valor];
-  }));
+  const { datosFiscales, tasaRetencion } = datosPerfilFactura();
   const monto = $('#factura-monto').value;
   const calculoExento = esHospital ? actualizarCalculoFactura() : null;
   const perfilRef = recordar ? doc(col('hospitales'), hospitalId) : null;
@@ -972,7 +1009,7 @@ formFactura.onsubmit = async event => {
           tipo: hospitalId ? 'hospital' : 'individual' });
         for (const estudioRef of refs) tx.update(estudioRef, { facturaId: ref.id });
       }
-      if (perfilRef) tx.update(perfilRef, { perfilFactura: { receptor, solicitante, correoEntrega, datosFiscales } });
+      if (perfilRef) tx.update(perfilRef, { perfilFactura: { receptor, solicitante, correoEntrega, datosFiscales, tasaRetencion } });
     });
     dlgFactura.close();
   } catch (error) {

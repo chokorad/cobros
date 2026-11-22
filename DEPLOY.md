@@ -7,3 +7,5 @@ The invoice email field uses the existing private Firestore path and requires no
 Hospital profiles use the existing private hospitals path and need no rules or migration changes. The SAT link is an external navigation.
 
 Verify that Settings and the service-worker cache both report v15.
+
+The Settings label and service-worker cache report v16.

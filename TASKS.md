@@ -8,3 +8,5 @@ Next invoice delivery steps: add a public submission endpoint with server-side v
 Validate profiles against historical invoices in a test project. Implement public intake and email attachment delivery as tracked above. Evaluate SAT field-by-field autofill separately.
 
 Verify the hospital profile and gross-up flow in an authorized Firebase test session.
+
+Verify profile-only save and reopen in the authenticated app.

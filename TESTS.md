@@ -11,3 +11,5 @@ In a test Firebase project, create and reopen an individual and a hospital invoi
 In a separate test project, save a hospital draft for two studies with an overridden invoice amount and profile enabled. Open a new draft for the same hospital and verify that billing fields load while the amount, folio and study selection start fresh. Edit the profile using an existing invoice and verify a draft for another hospital remains independent. Repeat with the profile checkbox off and test the SAT link and draft clipboard.
 
 Verify the Facturas tab and deep link. For a 5500 target, check 6111.11 at 10% and 5569.62 at 1.25%. Change the draft amount and verify the calculated withholding is cleared.
+
+Save only the profile, close and reopen a new draft. Verify the billing data and rate return, both amount fields are blank, and no invoice or study link was created.
