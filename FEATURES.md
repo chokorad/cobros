@@ -25,3 +25,5 @@ Full fiscal address is required on the preview. Facturas displays the local test
 The intake requires a positive MXN amount with up to two decimals and displays it on the local test card.
 
 The invoice preview requires the reported form of payment and displays it beside the amount.
+
+With cloud intake enabled, the portal returns a server-confirmed folio, and the private Facturas view shows unlinked requests and supports study selection. Caller claims are reviewed before invoicing.

@@ -23,3 +23,5 @@ The preview uses cobros-folio-prueba for its local demo. No fiscal or contact fi
 The local demo record is now JSON with folio and integer montoCentavos. Previous plain folios remain readable.
 
 Demo JSON optionally includes pago, a fixed payment-option identifier.
+
+Functions receives the validated form and creates solicitudesFactura/SOL-<uuid> with a server timestamp and null facturaId. Only the verified owner can read the collection. Linking writes a private invoice and its study references and marks the request linked in one transaction.

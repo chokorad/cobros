@@ -25,3 +25,5 @@ Check that a blank address blocks the preview and that a valid submission produc
 Try blank, zero, and fractional-cent amounts. Submit 5500.25 and verify the card shows cents. Check an older plain folio still renders.
 
 Verify a missing payment selection blocks the demo and older entries still render.
+
+Use two devices and fictional data on the test deployment. Check folio and fields, duplicate retries, denied unauthenticated reads, and an atomic link to an unbilled study. Check a concurrent link cannot link the same request twice.

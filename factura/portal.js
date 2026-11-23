@@ -1,3 +1,4 @@
+import { nubeActiva, enviarSolicitud } from './envio.js';
 'use strict';
 
 // Public branding only. Keep credentials and billing data outside this file.
@@ -80,17 +81,40 @@ rfc.addEventListener('input', () => {
 rfc.addEventListener('invalid', mostrarErrorRfc);
 
 formulario.addEventListener('submit', (event) => event.preventDefault());
-formulario.addEventListener('input', () => { resultado.hidden = true; });
-boton.addEventListener('click', () => {
+let clave;
+if (nubeActiva) {
+  document.getElementById('aviso').textContent = 'Recibirás un folio al enviar la solicitud.';
+  boton.textContent = 'Enviar solicitud';
+}
+formulario.addEventListener('input', () => {
+  resultado.hidden = true;
+  clave = undefined;
+});
+boton.addEventListener('click', async () => {
   if (!formulario.reportValidity()) return;
+  boton.disabled = true;
   try {
+    if (nubeActiva) {
+      clave ??= crypto.randomUUID();
+      const datos = Object.fromEntries(new FormData(formulario));
+      datos.rfc = datos.rfc.trim().toUpperCase();
+      datos.montoCentavos = Math.round(Number(datos.monto) * 100);
+      delete datos.monto;
+      const { folio } = await enviarSolicitud({ ...datos, clave });
+      resultado.textContent = 'Solicitud recibida. Tu folio es ' + folio + '.';
+      formulario.reset();
+      clave = undefined;
+      return;
+    }
     const folio = 'PRUEBA-' + crypto.randomUUID().slice(0, 8).toUpperCase();
     const montoCentavos = Math.round(formulario.elements.namedItem('monto').valueAsNumber * 100);
     localStorage.setItem('cobros-folio-prueba', JSON.stringify({ folio, montoCentavos, pago: formulario.elements.namedItem('pago').value }));
     resultado.textContent = 'Folio ' + folio + '. Ábrelo en Facturas de Cobros, en este mismo navegador.';
   } catch {
-    resultado.textContent = 'Este navegador no pudo guardar el folio de prueba.';
+    resultado.textContent = nubeActiva ? 'No se pudo confirmar el envío. Intenta de nuevo.' : 'Este navegador no pudo guardar el folio de prueba.';
+  } finally {
+    resultado.hidden = false;
+    boton.disabled = false;
   }
-  resultado.hidden = false;
 });
 boton.disabled = false;

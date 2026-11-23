@@ -21,3 +21,5 @@ GitHub Pages serves v17. The folio demo needs no database changes.
 The private shell cache and version label now use v18.
 
 The app shell now uses v19 and the portal script uses v5.
+
+From this directory run npm install in functions, then use authenticated Firebase CLI to deploy functions:recibirSolicitud and firestore:rules to an authorized test project. Register the portal domain for the App Check reCAPTCHA Enterprise provider. Validate with a separate test configuration before enabling nubeActiva. Deploy the backend and rules before enabling the flag on GitHub Pages.

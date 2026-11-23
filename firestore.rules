@@ -1,6 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /solicitudesFactura/{folio} {
+      allow read: if esPropietario();
+      allow update: if esPropietario()
+        && resource.data.facturaId == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['facturaId'])
+        && request.resource.data.facturaId is string
+        && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/facturas/$(request.resource.data.facturaId))
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)/facturas/$(request.resource.data.facturaId)).data.solicitudId == folio;
+    }
+    function esPropietario() {
+      return request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.email == "mariohquintero@gmail.com";
+    }
     // Cada usuario solo ve lo suyo, y solo tu correo puede entrar.
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null
