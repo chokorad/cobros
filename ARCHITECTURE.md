@@ -11,3 +11,5 @@ A hospital may store `perfilFactura: { receptor, solicitante, correoEntrega, dat
 Hospital drafts may store `calculoExento` with `base`, `neto`, `retencion` in MXN and `tasa` as a percentage. It is saved only when the entered base matches the calculator.
 
 A profile-only save updates the existing hospital document and stores the optional withholding rate, without a draft amount.
+
+The static factura/ route contains the intake preview. portal.js holds public branding (name, specialty, optional credential, logo and background). The preview does not call Firebase or submit fields.

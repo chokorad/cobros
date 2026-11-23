@@ -10,3 +10,5 @@ Validate profiles against historical invoices in a test project. Implement publi
 Verify the hospital profile and gross-up flow in an authorized Firebase test session.
 
 Verify profile-only save and reopen in the authenticated app.
+
+Connect the patient intake to a private queue and add authorized branding edits before sharing the live request link or generating a patient QR.

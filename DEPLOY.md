@@ -9,3 +9,5 @@ Hospital profiles use the existing private hospitals path and need no rules or m
 Verify that Settings and the service-worker cache both report v15.
 
 The Settings label and service-worker cache report v16.
+
+GitHub Pages serves factura/ separately from the private app navigation. Update the public branding configuration and assets inside factura/.

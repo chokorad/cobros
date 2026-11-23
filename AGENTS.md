@@ -9,3 +9,5 @@ Hospital invoice profiles are optional private defaults. Preserve existing invoi
 Keep the visible Settings release number in sync with the service-worker cache.
 
 Keep profile-only saves independent of study and invoice writes.
+
+The public invoice preview is isolated under factura/. Keep live records and authentication data out of its public assets.

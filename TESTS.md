@@ -13,3 +13,5 @@ In a separate test project, save a hospital draft for two studies with an overri
 Verify the Facturas tab and deep link. For a 5500 target, check 6111.11 at 10% and 5569.62 at 1.25%. Change the draft amount and verify the calculated withholding is cleared.
 
 Save only the profile, close and reopen a new draft. Verify the billing data and rate return, both amount fields are blank, and no invoice or study link was created.
+
+On a phone and desktop, open factura/, confirm the panel is readable over the background, try an incomplete form, and submit valid fictional inputs. Verify no request is transmitted and the credential row is hidden when empty.

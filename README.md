@@ -89,3 +89,5 @@ From Facturas, select a hospital with eligible studies. Select the studies, revi
 Open Facturas from the toolbar. In a hospital draft, enter the target net and select the confirmed rate to calculate the base for an exempt invoice.
 
 Use Guardar solo perfil to reuse billing defaults and the withholding rate on a new draft.
+
+Open factura/ to review the mobile patient intake preview with fictional data.

@@ -1,0 +1,78 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  color: #f4f8ff;
+  background: #081427;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, #08142666, #0d254633 58%, #07132699),
+    var(--imagen-fondo,
+      radial-gradient(ellipse at 90% 14%, #366fa5, transparent 48%),
+      radial-gradient(ellipse at 15% 88%, #174b71, transparent 56%),
+      #0a1830);
+  background-size: cover;
+  background-position: center 34%;
+}
+
+main { width: min(100% - 2rem, 41rem); margin: auto; padding: clamp(1.5rem, 5vw, 3rem) 0; }
+
+.identidad {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.identidad img { width: 3.5rem; height: 3.5rem; object-fit: contain; }
+.identidad p { margin: .25rem 0 0; color: #d2e0f2; }
+#nombre, h1 { font-family: Georgia, serif; font-weight: 400; }
+#nombre { font-size: clamp(1.8rem, 5vw, 2.45rem); color: #fff; margin: 0; }
+
+.panel {
+  padding: clamp(1.15rem, 5vw, 2.35rem);
+  border: 1px solid #9bc3ed55;
+  border-radius: 1.4rem;
+  background: #102a4b9c;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1.25rem 4rem #040c245e;
+}
+
+h1 { font-size: clamp(2.15rem, 7vw, 3.15rem); line-height: 1.05; margin: 0; }
+.intro { line-height: 1.5; color: #dce9f8; margin: .8rem 0 1rem; }
+.aviso { border-left: 2px solid #9dcfff; padding-left: .65rem; color: #e1eeff; font-size: .875rem; }
+
+form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.35rem; }
+.ancho { grid-column: 1 / -1; }
+label { display: grid; align-content: start; gap: .42rem; font-size: .9rem; font-weight: 600; }
+
+input, button { font: inherit; min-height: 2.85rem; border-radius: .65rem; }
+input {
+  width: 100%;
+  padding: .65rem .75rem;
+  color: inherit;
+  background: #081a32ad;
+  border: 1px solid #97b9e075;
+  font-size: 1rem;
+}
+input::placeholder { color: #bdd1e9; }
+:focus-visible { outline: 2px solid #bdeaff; outline-offset: 3px; }
+
+button {
+  margin-top: .2rem;
+  border: none;
+  background: #c6e4ff;
+  color: #08213f;
+  font-weight: 700;
+  cursor: pointer;
+}
+button:hover { background: #e4f3ff; }
+#resultado { color: #e3f3ff; margin: 0; }
+
+@media (max-width: 480px) { form { grid-template-columns: minmax(0, 1fr); } }

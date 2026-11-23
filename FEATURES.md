@@ -13,3 +13,5 @@ Facturas lists hospitals with eligible studies. Start from a hospital, select st
 The main navigation links directly to Facturas. Settings shows the release number. Hospital drafts can calculate the gross base for an exempt invoice using an explicitly selected ISR rate.
 
 Save hospital defaults directly from the draft using Guardar solo perfil, without creating an invoice.
+
+The patient invoice preview includes a translucent blue panel, replaceable decor and client-side field validation.
