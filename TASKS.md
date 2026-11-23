@@ -16,3 +16,5 @@ Connect the patient intake to a private queue and add authorized branding edits 
 Before enabling real intake, validate regime and usage compatibility server-side against the official catalogues.
 
 Decide whether the optional address needs to be stored when wiring the private queue.
+
+Deploy an authenticated private intake queue before enabling live submissions; test cross-device delivery and study linking with synthetic data.

@@ -19,3 +19,5 @@ The patient invoice preview includes a translucent blue panel, replaceable decor
 The preview shows the MRI in a navy banner above a white form. Regime and usage are selected by code and name.
 
 A full fiscal address may be entered optionally.
+
+Full fiscal address is required on the preview. Facturas displays the local test folio.

@@ -95,3 +95,5 @@ Open factura/ to review the mobile patient intake preview with fictional data.
 The RFC shows a red error when its format fails. Select the fiscal regime and usage from their menus.
 
 The fiscal address can be left blank.
+
+Test with fictional inputs and open Facturas on the same browser to see the folio.

@@ -741,6 +741,10 @@ $('#panel').onclick = e => {
     if (estudio?.facturaId) abrirFactura(facturas.get(estudio.facturaId));
     else if (estudio) abrirFactura(null, [estudio], null);
   }
+  if (act === 'factura-limpiar-prueba') {
+    localStorage.removeItem('cobros-folio-prueba');
+    renderFacturas();
+  }
   if (act === 'factura-editar') abrirFactura(facturas.get(id));
   if (act === 'factura-perfil-hospital') {
     const elegibles = estudios.filter(x => x.hospitalId === b.dataset.h && !x.facturaId
@@ -784,6 +788,10 @@ const formFactura = $('#form-factura');
 let edicionFactura;
 const camposFiscales = ['rfc', 'cp', 'regimen', 'uso', 'concepto'];
 
+window.addEventListener('storage', (event) => {
+  if (uid && event.key === 'cobros-folio-prueba' && $('#filtro').value === 'facturas') renderPanel();
+});
+
 function renderFacturas() {
   const orden = { solicitada: 0, emitida: 1, enviada: 2 };
   const lista = [...facturas.values()].sort((a, b) =>
@@ -802,7 +810,13 @@ function renderFacturas() {
       <button class="sec" data-act="factura-editar" data-id="${esc(f.id)}">Ver factura</button></header>
       ${incluidos.map(e => itemHTML(e, 'factura')).join('')}</article>`;
   }).join('') : '<p class="vacio">Aún no hay solicitudes de factura.</p>';
-  $('#panel').innerHTML = accesos + historial;
+  const folioPrueba = localStorage.getItem('cobros-folio-prueba');
+  const prueba = /^PRUEBA-[A-F0-9]{8}$/.test(folioPrueba || '')
+    ? `<article class="grupo"><header><div><h3>Solicitud de prueba</h3>
+      <small>Folio ${esc(folioPrueba)} · Solo en este navegador</small></div>
+      <button type="button" class="sec" data-act="factura-limpiar-prueba">Quitar prueba</button></header></article>`
+    : '';
+  $('#panel').innerHTML = prueba + accesos + historial;
 }
 
 function abrirFactura(f, candidatos = [], hospitalId, preseleccion = () => true) {

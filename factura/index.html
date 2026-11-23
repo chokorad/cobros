@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <title>Solicita tu factura | Dr. Mario Quintero</title>
 <link rel="stylesheet" href="portal.css?v=2">
-<script src="portal.js?v=2" defer></script>
+<script src="portal.js?v=3" defer></script>
 </head>
 <body>
 <main>
@@ -22,7 +22,7 @@
   <section class="panel" aria-labelledby="titulo">
     <h1 id="titulo">Solicita tu factura</h1>
     <p class="intro">Captura los datos de la persona o empresa a la que se emitirá la factura.</p>
-    <p class="aviso" id="aviso">Vista previa. Usa datos ficticios para probar el formulario.</p>
+    <p class="aviso" id="aviso">Modo de prueba. Usa datos ficticios. El folio de prueba se verá en Cobros en este mismo navegador.</p>
 
     <form id="solicitud" aria-describedby="aviso" method="dialog">
       <label class="ancho">RFC
@@ -36,8 +36,8 @@
         <small>El que aparece en tu constancia fiscal.</small>
         <input name="cp" inputmode="numeric" maxlength="5" pattern="[0-9]{5}" required>
       </label>
-      <label class="ancho">Dirección fiscal (opcional)
-        <input name="direccion" maxlength="240" autocomplete="off" placeholder="Calle, número, colonia y municipio">
+      <label class="ancho">Dirección fiscal
+        <input name="direccion" required maxlength="240" autocomplete="off" placeholder="Calle, número, colonia y municipio">
       </label>
       <label>Régimen fiscal
         <select name="regimen" required><option value="">Selecciona tu régimen</option></select>

@@ -17,3 +17,5 @@ The static factura/ route contains the intake preview. portal.js holds public br
 The intake script populates versioned local option lists and uses native input validity for RFC format feedback.
 
 The preview has an optional direccion input. It is not persisted.
+
+The preview writes one synthetic folio to cobros-folio-prueba. No entered values are stored or transmitted.

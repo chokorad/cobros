@@ -19,3 +19,5 @@ On a phone and desktop, open factura/, confirm the panel is readable over the ba
 Try invalid and valid 12- and 13-character RFCs and verify the error clears. Check both menus and the white panel at mobile width.
 
 Verify a complete sample submission passes with a blank address.
+
+Check that a blank address blocks the preview and that a valid submission produces a folio only. Open Facturas in the same browser and remove the test folio.

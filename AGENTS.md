@@ -15,3 +15,5 @@ The public invoice preview is isolated under factura/. Keep live records and aut
 Keep the intake catalogue and format validation aligned with SAT CFDI 4.0.
 
 Keep the optional address distinct from the required fiscal postal code.
+
+Store only the synthetic test folio in browser storage.

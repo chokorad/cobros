@@ -83,7 +83,13 @@ formulario.addEventListener('submit', (event) => event.preventDefault());
 formulario.addEventListener('input', () => { resultado.hidden = true; });
 boton.addEventListener('click', () => {
   if (!formulario.reportValidity()) return;
-  resultado.textContent = 'Formulario completo. Esta prueba no envía ni guarda los datos.';
+  try {
+    const folio = 'PRUEBA-' + crypto.randomUUID().slice(0, 8).toUpperCase();
+    localStorage.setItem('cobros-folio-prueba', folio);
+    resultado.textContent = 'Folio ' + folio + '. Ábrelo en Facturas de Cobros, en este mismo navegador.';
+  } catch {
+    resultado.textContent = 'Este navegador no pudo guardar el folio de prueba.';
+  }
   resultado.hidden = false;
 });
 boton.disabled = false;

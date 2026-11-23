@@ -1,5 +1,5 @@
-const CACHE = 'cobros-v16';
-const SHELL = ['./', 'index.html', 'app.js?v=16', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon-32.png'];
+const CACHE = 'cobros-v17';
+const SHELL = ['./', 'index.html', 'app.js?v=17', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon-32.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
