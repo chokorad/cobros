@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <title>Solicita tu factura | Dr. Mario Quintero</title>
 <link rel="stylesheet" href="portal.css?v=2">
-<script type="module" src="portal.js?v=6" defer></script>
+<script type="module" src="portal.js?v=7" defer></script>
 </head>
 <body>
 <main>
@@ -25,6 +25,14 @@
     <p class="aviso" id="aviso">Modo de prueba. Usa datos ficticios. El folio y el monto de prueba se verán en Cobros en este mismo navegador.</p>
 
     <form id="solicitud" aria-describedby="aviso" method="dialog">
+      <label class="ancho">Correo de entrega
+        <input name="correo" type="email" maxlength="254" required>
+      </label>
+      <div class="ancho" id="perfil-google" hidden>
+        <button type="button" id="entrar-google">Continuar con Google</button>
+        <button type="button" id="salir-google" hidden>Cerrar sesión</button>
+        <label id="recordar-perfil" hidden><input type="checkbox" name="recordar"> Recordar mis datos fiscales</label>
+      </div>
       <label class="ancho">RFC
         <input id="rfc" name="rfc" aria-describedby="rfc-error" maxlength="13" minlength="12" pattern="[A-Za-zÑñ&amp;]{3,4}[0-9]{6}[A-Za-z0-9]{3}" autocapitalize="characters" spellcheck="false" required>
         <small id="rfc-error" aria-live="polite" hidden>Revisa el RFC. Debe tener 12 o 13 caracteres y seguir el formato del SAT.</small>
@@ -45,9 +53,7 @@
       <label>Uso del CFDI
         <select name="uso" required><option value="">Selecciona el uso</option></select>
       </label>
-      <label>Correo de entrega
-        <input name="correo" type="email" maxlength="254" required>
-      </label>
+
       <label class="ancho">Monto de la factura (MXN)
         <input name="monto" type="number" inputmode="decimal" min="0.01" max="999999999.99" step="0.01" required>
       </label>

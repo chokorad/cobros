@@ -3,12 +3,50 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /solicitudesFactura/{folio} {
       allow read: if esPropietario();
+      allow create: if request.auth != null
+        && folio.matches('SOL-[0-9A-F-]{36}')
+        && solicitudValida(request.resource.data)
+        && request.resource.data.remitente == request.auth.uid
+        && request.resource.data.creada == request.time
+        && request.resource.data.facturaId == null;
+      allow update: if request.auth != null
+        && resource.data.remitente == request.auth.uid
+        && request.resource.data.creada == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['creada']);
       allow update: if esPropietario()
         && resource.data.facturaId == null
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['facturaId'])
         && request.resource.data.facturaId is string
         && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/facturas/$(request.resource.data.facturaId))
         && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)/facturas/$(request.resource.data.facturaId)).data.solicitudId == folio;
+    }
+    match /perfilesFiscales/{uid} {
+      allow get, delete: if esUsuarioGoogle(uid);
+      allow create, update: if esUsuarioGoogle(uid)
+        && request.resource.data.keys().hasOnly(['rfc', 'nombre', 'cp', 'direccion', 'regimen', 'uso'])
+        && datosFiscalesValidos(request.resource.data);
+    }
+    function esUsuarioGoogle(uid) {
+      return request.auth != null && request.auth.uid == uid
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function textoValido(valor, maximo) {
+      return valor is string && valor.size() <= maximo && valor.matches('.*[^ ].*');
+    }
+    function datosFiscalesValidos(d) {
+      return d.rfc is string && d.rfc.matches('[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}')
+        && textoValido(d.nombre, 160) && textoValido(d.direccion, 240)
+        && d.cp is string && d.cp.matches('[0-9]{5}')
+        && d.regimen in ['601','603','605','606','607','608','610','611','612','614','615','616','620','621','622','623','624','625','626']
+        && d.uso in ['G01','G02','G03','I01','I02','I03','I04','I05','I06','I07','I08','D01','D02','D03','D04','D05','D06','D07','D08','D09','D10','S01'];
+    }
+    function solicitudValida(d) {
+      return d.keys().hasOnly(['rfc','nombre','cp','direccion','regimen','uso','correo','pago','montoCentavos','remitente','creada','facturaId'])
+        && datosFiscalesValidos(d)
+        && textoValido(d.correo, 254) && d.correo.matches('[^ @]+@[^ @]+[.][^ @]+')
+        && d.pago in ['debito','credito','efectivo','transferencia','cheque','otro','pendiente']
+        && d.montoCentavos is int && d.montoCentavos > 0 && d.montoCentavos <= 99999999999;
     }
     function esPropietario() {
       return request.auth != null && request.auth.token.email_verified == true

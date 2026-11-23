@@ -102,4 +102,4 @@ Enter a fictional amount in MXN and check it beside the folio in Facturas.
 
 Select the payment option when testing an invoice request.
 
-The local demonstration remains active. Cloud intake uses the flag in factura/envio.js and requires the backend described in DEPLOY.md.
+Cloud intake remains disabled by default. Google sign-in and guest intake are available in the cloud configuration.

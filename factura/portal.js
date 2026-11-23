@@ -1,4 +1,4 @@
-import { nubeActiva, enviarSolicitud } from './envio.js';
+import { nubeActiva, enviarSolicitud, entrarConGoogle, salirDelPerfil } from './envio.js';
 'use strict';
 
 // Public branding only. Keep credentials and billing data outside this file.
@@ -86,6 +86,44 @@ if (nubeActiva) {
   document.getElementById('aviso').textContent = 'Recibirás un folio al enviar la solicitud.';
   boton.textContent = 'Enviar solicitud';
 }
+const entrar = document.getElementById('entrar-google');
+const salir = document.getElementById('salir-google');
+const recordar = document.getElementById('recordar-perfil');
+if (nubeActiva) document.getElementById('perfil-google').hidden = false;
+entrar.onclick = async () => {
+  entrar.disabled = true;
+  boton.disabled = true;
+  try {
+    const { correo, perfil } = await entrarConGoogle();
+    formulario.elements.namedItem('correo').value = correo || '';
+    for (const campo of ['rfc', 'nombre', 'cp', 'direccion', 'regimen', 'uso']) {
+      if (perfil) formulario.elements.namedItem(campo).value = perfil[campo] || '';
+    }
+    if (rfc.value) mostrarErrorRfc();
+    entrar.hidden = true;
+    salir.hidden = false;
+    recordar.hidden = false;
+    resultado.hidden = true;
+    clave = undefined;
+  } catch {
+    resultado.textContent = 'No se pudieron cargar los datos de Google.';
+    resultado.hidden = false;
+  } finally {
+    entrar.disabled = false;
+    boton.disabled = false;
+  }
+};
+salir.onclick = async () => {
+  await salirDelPerfil();
+  formulario.reset();
+  clave = undefined;
+  resultado.hidden = true;
+  errorRfc.hidden = true;
+  rfc.removeAttribute('aria-invalid');
+  entrar.hidden = false;
+  salir.hidden = true;
+  recordar.hidden = true;
+};
 formulario.addEventListener('input', () => {
   resultado.hidden = true;
   clave = undefined;
@@ -97,6 +135,8 @@ boton.addEventListener('click', async () => {
     if (nubeActiva) {
       clave ??= crypto.randomUUID();
       const datos = Object.fromEntries(new FormData(formulario));
+      datos.recordar = datos.recordar === 'on';
+      for (const campo of ['nombre', 'direccion', 'correo']) datos[campo] = datos[campo].trim();
       datos.rfc = datos.rfc.trim().toUpperCase();
       datos.montoCentavos = Math.round(Number(datos.monto) * 100);
       delete datos.monto;

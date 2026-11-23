@@ -26,4 +26,4 @@ Try blank, zero, and fractional-cent amounts. Submit 5500.25 and verify the card
 
 Verify a missing payment selection blocks the demo and older entries still render.
 
-Use two devices and fictional data on the test deployment. Check folio and fields, duplicate retries, denied unauthenticated reads, and an atomic link to an unbilled study. Check a concurrent link cannot link the same request twice.
+Verify guest submission, Google reload, UID isolation, blocked anonymous reads, invalid submissions, and owner linking using synthetic data.

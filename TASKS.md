@@ -23,4 +23,4 @@ Carry the requested amount into the private intake queue when live submission is
 
 Carry the reported payment option into the private queue for verification.
 
-Deploy and verify the callable and rules with an authorized Firebase environment. Test two devices with synthetic values. Enable live intake only after verification and publication of the privacy notice.
+Verify App Check and rules in a Firebase test project before enabling the intake switch.

@@ -22,4 +22,4 @@ The local demo may store the fictional amount and folio only.
 
 Demo payment selections are local only.
 
-Keep the callable intake and private Firestore rules together. Leave the cloud intake flag off until deployment has been verified.
+Keep public intake writes and Google profile reads constrained by Firestore rules.
