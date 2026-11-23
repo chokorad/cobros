@@ -15,3 +15,5 @@ A profile-only save updates the existing hospital document and stores the option
 The static factura/ route contains the intake preview. portal.js holds public branding (name, specialty, optional credential, logo and background). The preview does not call Firebase or submit fields.
 
 The intake script populates versioned local option lists and uses native input validity for RFC format feedback.
+
+The preview has an optional direccion input. It is not persisted.

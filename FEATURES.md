@@ -17,3 +17,5 @@ Save hospital defaults directly from the draft using Guardar solo perfil, withou
 The patient invoice preview includes a translucent blue panel, replaceable decor and client-side field validation.
 
 The preview shows the MRI in a navy banner above a white form. Regime and usage are selected by code and name.
+
+A full fiscal address may be entered optionally.

@@ -93,3 +93,5 @@ Use Guardar solo perfil to reuse billing defaults and the withholding rate on a 
 Open factura/ to review the mobile patient intake preview with fictional data.
 
 The RFC shows a red error when its format fails. Select the fiscal regime and usage from their menus.
+
+The fiscal address can be left blank.

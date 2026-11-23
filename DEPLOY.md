@@ -13,3 +13,5 @@ The Settings label and service-worker cache report v16.
 GitHub Pages serves factura/ separately from the private app navigation. Update the public branding configuration and assets inside factura/.
 
 The invoice preview uses versioned CSS and script URLs to load matching assets.
+
+Verify the public preview exposes the optional fiscal address after deployment.
