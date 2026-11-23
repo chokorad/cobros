@@ -15,3 +15,5 @@ Verify the Facturas tab and deep link. For a 5500 target, check 6111.11 at 10% a
 Save only the profile, close and reopen a new draft. Verify the billing data and rate return, both amount fields are blank, and no invoice or study link was created.
 
 On a phone and desktop, open factura/, confirm the panel is readable over the background, try an incomplete form, and submit valid fictional inputs. Verify no request is transmitted and the credential row is hidden when empty.
+
+Try invalid and valid 12- and 13-character RFCs and verify the error clears. Check both menus and the white panel at mobile width.

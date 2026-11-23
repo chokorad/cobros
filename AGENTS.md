@@ -11,3 +11,5 @@ Keep the visible Settings release number in sync with the service-worker cache.
 Keep profile-only saves independent of study and invoice writes.
 
 The public invoice preview is isolated under factura/. Keep live records and authentication data out of its public assets.
+
+Keep the intake catalogue and format validation aligned with SAT CFDI 4.0.

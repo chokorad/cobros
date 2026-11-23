@@ -91,3 +91,5 @@ Open Facturas from the toolbar. In a hospital draft, enter the target net and se
 Use Guardar solo perfil to reuse billing defaults and the withholding rate on a new draft.
 
 Open factura/ to review the mobile patient intake preview with fictional data.
+
+The RFC shows a red error when its format fails. Select the fiscal regime and usage from their menus.

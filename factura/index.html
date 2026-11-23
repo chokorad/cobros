@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Solicita tu factura | Dr. Mario Quintero</title>
-<link rel="stylesheet" href="portal.css">
-<script src="portal.js" defer></script>
+<link rel="stylesheet" href="portal.css?v=2">
+<script src="portal.js?v=2" defer></script>
 </head>
 <body>
 <main>
@@ -26,19 +26,21 @@
 
     <form id="solicitud" aria-describedby="aviso" method="dialog">
       <label class="ancho">RFC
-        <input name="rfc" maxlength="13" minlength="12" pattern="[A-Za-zÑñ&amp;]{3,4}[0-9]{6}[A-Za-z0-9]{3}" autocapitalize="characters" spellcheck="false" required>
+        <input id="rfc" name="rfc" aria-describedby="rfc-error" maxlength="13" minlength="12" pattern="[A-Za-zÑñ&amp;]{3,4}[0-9]{6}[A-Za-z0-9]{3}" autocapitalize="characters" spellcheck="false" required>
+        <small id="rfc-error" aria-live="polite" hidden>Revisa el RFC. Debe tener 12 o 13 caracteres y seguir el formato del SAT.</small>
       </label>
       <label class="ancho">Nombre o razón social
         <input name="nombre" maxlength="160" required>
       </label>
       <label>Código postal fiscal
+        <small>El que aparece en tu constancia fiscal.</small>
         <input name="cp" inputmode="numeric" maxlength="5" pattern="[0-9]{5}" required>
       </label>
       <label>Régimen fiscal
-        <input name="regimen" inputmode="numeric" maxlength="3" pattern="[0-9]{3}" placeholder="Clave de 3 dígitos" required>
+        <select name="regimen" required><option value="">Selecciona tu régimen</option></select>
       </label>
       <label>Uso del CFDI
-        <input name="uso" maxlength="3" pattern="[A-Za-z][A-Za-z0-9]{2}" autocapitalize="characters" required>
+        <select name="uso" required><option value="">Selecciona el uso</option></select>
       </label>
       <label>Correo de entrega
         <input name="correo" type="email" maxlength="254" required>

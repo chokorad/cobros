@@ -12,3 +12,5 @@ Verify the hospital profile and gross-up flow in an authorized Firebase test ses
 Verify profile-only save and reopen in the authenticated app.
 
 Connect the patient intake to a private queue and add authorized branding edits before sharing the live request link or generating a patient QR.
+
+Before enabling real intake, validate regime and usage compatibility server-side against the official catalogues.
