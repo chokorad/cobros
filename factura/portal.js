@@ -86,7 +86,7 @@ boton.addEventListener('click', () => {
   try {
     const folio = 'PRUEBA-' + crypto.randomUUID().slice(0, 8).toUpperCase();
     const montoCentavos = Math.round(formulario.elements.namedItem('monto').valueAsNumber * 100);
-    localStorage.setItem('cobros-folio-prueba', JSON.stringify({ folio, montoCentavos }));
+    localStorage.setItem('cobros-folio-prueba', JSON.stringify({ folio, montoCentavos, pago: formulario.elements.namedItem('pago').value }));
     resultado.textContent = 'Folio ' + folio + '. Ábrelo en Facturas de Cobros, en este mismo navegador.';
   } catch {
     resultado.textContent = 'Este navegador no pudo guardar el folio de prueba.';

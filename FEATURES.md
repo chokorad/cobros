@@ -23,3 +23,5 @@ A full fiscal address may be entered optionally.
 Full fiscal address is required on the preview. Facturas displays the local test folio.
 
 The intake requires a positive MXN amount with up to two decimals and displays it on the local test card.
+
+The invoice preview requires the reported form of payment and displays it beside the amount.

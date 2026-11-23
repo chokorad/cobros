@@ -20,3 +20,5 @@ Decide whether the optional address needs to be stored when wiring the private q
 Deploy an authenticated private intake queue before enabling live submissions; test cross-device delivery and study linking with synthetic data.
 
 Carry the requested amount into the private intake queue when live submission is enabled.
+
+Carry the reported payment option into the private queue for verification.

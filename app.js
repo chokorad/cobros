@@ -812,10 +812,17 @@ function renderFacturas() {
   }).join('') : '<p class="vacio">Aún no hay solicitudes de factura.</p>';
   let folioPrueba;
   let montoPrueba = '';
+  let pagoPrueba = '';
   try {
     const guardado = localStorage.getItem('cobros-folio-prueba');
     if (guardado?.startsWith('{')) {
-      const { folio, montoCentavos } = JSON.parse(guardado);
+      const { folio, montoCentavos, pago } = JSON.parse(guardado);
+      const formas = new Map([
+        ['debito', 'Tarjeta de débito'], ['credito', 'Tarjeta de crédito'], ['efectivo', 'Efectivo'],
+        ['transferencia', 'Transferencia electrónica (SPEI)'], ['cheque', 'Cheque nominativo'],
+        ['otro', 'Otro'], ['pendiente', 'Aún no he pagado']
+      ]);
+      if (formas.has(pago)) pagoPrueba = ' · Pago: ' + formas.get(pago);
       folioPrueba = folio;
       if (Number.isSafeInteger(montoCentavos) && montoCentavos > 0 && montoCentavos <= 99999999999) {
         const monto = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(montoCentavos / 100);
@@ -829,7 +836,7 @@ function renderFacturas() {
   }
   const prueba = /^PRUEBA-[A-F0-9]{8}$/.test(folioPrueba || '')
     ? `<article class="grupo"><header><div><h3>Solicitud de prueba</h3>
-      <small>Folio ${esc(folioPrueba)}${esc(montoPrueba)} · Solo en este navegador</small></div>
+      <small>Folio ${esc(folioPrueba)}${esc(montoPrueba)}${esc(pagoPrueba)} · Solo en este navegador</small></div>
       <button type="button" class="sec" data-act="factura-limpiar-prueba">Quitar prueba</button></header></article>`
     : '';
   $('#panel').innerHTML = prueba + accesos + historial;

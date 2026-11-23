@@ -19,3 +19,5 @@ Keep the optional address distinct from the required fiscal postal code.
 Keep demo data separate from live records.
 
 The local demo may store the fictional amount and folio only.
+
+Demo payment selections are local only.

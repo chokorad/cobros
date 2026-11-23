@@ -21,3 +21,5 @@ The preview has an optional direccion input. It is not persisted.
 The preview uses cobros-folio-prueba for its local demo. No fiscal or contact fields are stored or transmitted.
 
 The local demo record is now JSON with folio and integer montoCentavos. Previous plain folios remain readable.
+
+Demo JSON optionally includes pago, a fixed payment-option identifier.
