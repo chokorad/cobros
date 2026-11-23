@@ -18,3 +18,5 @@ Before enabling real intake, validate regime and usage compatibility server-side
 Decide whether the optional address needs to be stored when wiring the private queue.
 
 Deploy an authenticated private intake queue before enabling live submissions; test cross-device delivery and study linking with synthetic data.
+
+Carry the requested amount into the private intake queue when live submission is enabled.

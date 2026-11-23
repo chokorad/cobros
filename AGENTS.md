@@ -16,4 +16,6 @@ Keep the intake catalogue and format validation aligned with SAT CFDI 4.0.
 
 Keep the optional address distinct from the required fiscal postal code.
 
-Store only the synthetic test folio in browser storage.
+Keep demo data separate from live records.
+
+The local demo may store the fictional amount and folio only.

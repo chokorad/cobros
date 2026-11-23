@@ -21,3 +21,5 @@ The preview shows the MRI in a navy banner above a white form. Regime and usage 
 A full fiscal address may be entered optionally.
 
 Full fiscal address is required on the preview. Facturas displays the local test folio.
+
+The intake requires a positive MXN amount with up to two decimals and displays it on the local test card.

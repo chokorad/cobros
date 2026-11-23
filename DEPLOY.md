@@ -17,3 +17,5 @@ The invoice preview uses versioned CSS and script URLs to load matching assets.
 Verify the public preview exposes the optional fiscal address after deployment.
 
 GitHub Pages serves v17. The folio demo needs no database changes.
+
+The private shell cache and version label now use v18.

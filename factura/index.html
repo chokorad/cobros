@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <title>Solicita tu factura | Dr. Mario Quintero</title>
 <link rel="stylesheet" href="portal.css?v=2">
-<script src="portal.js?v=3" defer></script>
+<script src="portal.js?v=4" defer></script>
 </head>
 <body>
 <main>
@@ -22,7 +22,7 @@
   <section class="panel" aria-labelledby="titulo">
     <h1 id="titulo">Solicita tu factura</h1>
     <p class="intro">Captura los datos de la persona o empresa a la que se emitirá la factura.</p>
-    <p class="aviso" id="aviso">Modo de prueba. Usa datos ficticios. El folio de prueba se verá en Cobros en este mismo navegador.</p>
+    <p class="aviso" id="aviso">Modo de prueba. Usa datos ficticios. El folio y el monto de prueba se verán en Cobros en este mismo navegador.</p>
 
     <form id="solicitud" aria-describedby="aviso" method="dialog">
       <label class="ancho">RFC
@@ -47,6 +47,9 @@
       </label>
       <label>Correo de entrega
         <input name="correo" type="email" maxlength="254" required>
+      </label>
+      <label class="ancho">Monto de la factura (MXN)
+        <input name="monto" type="number" inputmode="decimal" min="0.01" max="999999999.99" step="0.01" required>
       </label>
       <button class="ancho" id="enviar" type="button" disabled>Probar solicitud</button>
       <p class="ancho" id="resultado" role="status" hidden></p>

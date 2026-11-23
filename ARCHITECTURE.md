@@ -18,4 +18,6 @@ The intake script populates versioned local option lists and uses native input v
 
 The preview has an optional direccion input. It is not persisted.
 
-The preview writes one synthetic folio to cobros-folio-prueba. No entered values are stored or transmitted.
+The preview uses cobros-folio-prueba for its local demo. No fiscal or contact fields are stored or transmitted.
+
+The local demo record is now JSON with folio and integer montoCentavos. Previous plain folios remain readable.

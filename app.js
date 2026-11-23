@@ -810,10 +810,26 @@ function renderFacturas() {
       <button class="sec" data-act="factura-editar" data-id="${esc(f.id)}">Ver factura</button></header>
       ${incluidos.map(e => itemHTML(e, 'factura')).join('')}</article>`;
   }).join('') : '<p class="vacio">Aún no hay solicitudes de factura.</p>';
-  const folioPrueba = localStorage.getItem('cobros-folio-prueba');
+  let folioPrueba;
+  let montoPrueba = '';
+  try {
+    const guardado = localStorage.getItem('cobros-folio-prueba');
+    if (guardado?.startsWith('{')) {
+      const { folio, montoCentavos } = JSON.parse(guardado);
+      folioPrueba = folio;
+      if (Number.isSafeInteger(montoCentavos) && montoCentavos > 0 && montoCentavos <= 99999999999) {
+        const monto = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(montoCentavos / 100);
+        montoPrueba = ' · Monto solicitado ' + monto + ' MXN';
+      }
+    } else {
+      folioPrueba = guardado;
+    }
+  } catch {
+    // A blocked or invalid local demo entry should not prevent invoice tracking.
+  }
   const prueba = /^PRUEBA-[A-F0-9]{8}$/.test(folioPrueba || '')
     ? `<article class="grupo"><header><div><h3>Solicitud de prueba</h3>
-      <small>Folio ${esc(folioPrueba)} · Solo en este navegador</small></div>
+      <small>Folio ${esc(folioPrueba)}${esc(montoPrueba)} · Solo en este navegador</small></div>
       <button type="button" class="sec" data-act="factura-limpiar-prueba">Quitar prueba</button></header></article>`
     : '';
   $('#panel').innerHTML = prueba + accesos + historial;

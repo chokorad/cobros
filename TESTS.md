@@ -21,3 +21,5 @@ Try invalid and valid 12- and 13-character RFCs and verify the error clears. Che
 Verify a complete sample submission passes with a blank address.
 
 Check that a blank address blocks the preview and that a valid submission produces a folio only. Open Facturas in the same browser and remove the test folio.
+
+Try blank, zero, and fractional-cent amounts. Submit 5500.25 and verify the card shows cents. Check an older plain folio still renders.

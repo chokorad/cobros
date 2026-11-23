@@ -97,3 +97,5 @@ The RFC shows a red error when its format fails. Select the fiscal regime and us
 The fiscal address can be left blank.
 
 Test with fictional inputs and open Facturas on the same browser to see the folio.
+
+Enter a fictional amount in MXN and check it beside the folio in Facturas.
