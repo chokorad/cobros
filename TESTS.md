@@ -31,3 +31,5 @@ Verify guest submission, Google reload, UID isolation, blocked anonymous reads, 
 After signing in, verify the opt-in is legible, initially unchecked and toggles when its text is tapped.
 
 In the pilot, verify immediate Google feedback, profile lookup status, and retry or manual entry after closing the popup.
+
+Verify the default URL remains a demo with incomplete privacy settings and that the configured page shows the privacy notice before the form.

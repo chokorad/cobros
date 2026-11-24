@@ -31,3 +31,5 @@ Email-first form, optional Google account and optional profile retention. Amount
 Google sign-in reveals a clearly labeled fiscal profile opt-in.
 
 Google sign-in has an immediate activity indicator, a prompt during longer waits, and a fiscal profile lookup message.
+
+The patient portal shows a short privacy notice and an expandable full notice before data entry.

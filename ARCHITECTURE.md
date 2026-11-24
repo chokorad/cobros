@@ -29,3 +29,5 @@ Spark intake writes validated requests directly to Firestore using Firebase Auth
 The profile opt-in remains an unchecked native checkbox in the Google section.
 
 The pilot warms the Firebase client and reports separate Google sign-in and fiscal profile lookup stages.
+
+The normal portal URL enables cloud submissions only when the public privacy notice has a controller name, address and contact email.

@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <title>Solicita tu factura | Dr. Mario Quintero</title>
 <link rel="stylesheet" href="portal.css?v=4">
-<script type="module" src="portal.js?v=9" defer></script>
+<script type="module" src="portal.js?v=10" defer></script>
 </head>
 <body>
 <main>
@@ -23,6 +23,19 @@
     <h1 id="titulo">Solicita tu factura</h1>
     <p class="intro">Captura los datos de la persona o empresa a la que se emitirá la factura.</p>
     <p class="aviso" id="aviso">Modo de prueba. Usa datos ficticios. El folio y el monto de prueba se verán en Cobros en este mismo navegador.</p>
+
+    <section id="privacidad" hidden aria-labelledby="titulo-privacidad">
+      <h2 id="titulo-privacidad">Aviso de privacidad</h2>
+      <p><span id="privacidad-responsable"></span>, con domicilio en <span id="privacidad-domicilio"></span>, usa tus datos de contacto, fiscales y de pago para atender tu solicitud y emitir y entregar tu factura. Puedes pedir que se limite el uso o la divulgación de tus datos mediante el <a id="privacidad-contacto">correo de privacidad</a>.</p>
+      <details>
+        <summary>Aviso de privacidad integral</summary>
+        <p>El formulario recaba correo de entrega, nombre o razón social, RFC, domicilio y código postal fiscales, régimen fiscal, uso del CFDI, monto y forma de pago. Cuando eliges iniciar sesión con Google, el portal usa el correo y el identificador de tu cuenta para acceder a tu perfil.</p>
+        <p>Usamos estos datos para gestionar la solicitud, verificar los datos de facturación y emitir y entregar el CFDI. Firebase presta los servicios técnicos de autenticación y almacenamiento. Los datos necesarios para emitir el CFDI se comunican al SAT o al proveedor de certificación que corresponda.</p>
+        <p>Guardar tu perfil para precargar futuras solicitudes es opcional. Puedes autorizarlo marcando la casilla de recordatorio al enviar una solicitud con tu cuenta de Google. Puedes solicitar que se elimine ese perfil sin afectar los comprobantes sujetos a conservación legal.</p>
+        <p>Por el correo de privacidad indicado arriba puedes pedir acceso, rectificación, cancelación u oposición respecto de tus datos (derechos ARCO), revocar tu consentimiento o limitar el uso o divulgación. Indica tu nombre, un medio para recibir la respuesta, los datos a los que se refiere tu solicitud y qué deseas ejercer. Te indicaremos cómo acreditar tu identidad o representación y, para una rectificación, qué documentación respalda el cambio.</p>
+        <p>Publicaremos las actualizaciones de este aviso en esta misma página.</p>
+      </details>
+    </section>
 
     <form id="solicitud" aria-describedby="aviso" method="dialog">
       <label class="ancho">Correo de entrega

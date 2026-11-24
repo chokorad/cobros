@@ -107,3 +107,5 @@ Cloud intake remains disabled by default. Google sign-in and guest intake are av
 After signing in, optionally check the box to remember fiscal data.
 
 In the pilot, the status beside the Google button shows sign-in and saved profile lookup progress.
+
+Use the pilot with fictional data until the patient portal privacy notice is configured.

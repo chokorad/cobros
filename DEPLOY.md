@@ -27,3 +27,5 @@ Enable Anonymous Authentication and Google Authentication, authorize the portal 
 The opt-in layout uses portal.css v3.
 
 When deploying sign-in UI changes, bump the versioned portal assets and verify the pilot URL.
+
+Set the confirmed public controller name, address and contact email in factura/portal.js, bump the script version, and verify the normal URL before sharing it.

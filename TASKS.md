@@ -28,3 +28,5 @@ Verify App Check and rules in a Firebase test project before enabling the intake
 Verify profile recall on a separate device before enabling general intake.
 
 Recheck pilot sign-in on mobile with slow connectivity after publishing updates.
+
+Confirm the controller’s public details and finalize the notice before enabling patient intake.

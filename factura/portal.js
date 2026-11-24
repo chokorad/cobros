@@ -1,7 +1,13 @@
 import { nubeActiva as firebaseActivo, enviarSolicitud, entrarConGoogle, prepararGoogle, salirDelPerfil } from './envio.js?v=21';
 
-const nubeActiva = firebaseActivo && new URLSearchParams(location.search).get('piloto') === '1';
-'use strict';
+const privacidad = {
+  responsable: 'Mario Humberto Quintero Peña',
+  domicilio: 'Panama 499, Cuahutemoc sur, 21200, Mexicali Baja California',
+  correo: 'mariohquintero@gmail.com'
+};
+const piloto = new URLSearchParams(location.search).get('piloto') === '1';
+const portalPacientes = firebaseActivo && !piloto && Object.values(privacidad).every(dato => dato.trim());
+const nubeActiva = firebaseActivo && (piloto || portalPacientes);
 
 // Public branding only. Keep credentials and billing data outside this file.
 const identidad = {
@@ -85,8 +91,16 @@ rfc.addEventListener('invalid', mostrarErrorRfc);
 formulario.addEventListener('submit', (event) => event.preventDefault());
 let clave;
 if (nubeActiva) {
-  document.getElementById('aviso').textContent = 'Prueba en la nube. Usa únicamente datos ficticios.';
+  document.getElementById('aviso').textContent = piloto
+    ? 'Prueba en la nube. Usa únicamente datos ficticios.'
+    : 'Recibirás un folio al enviar tu solicitud.';
   boton.textContent = 'Enviar solicitud';
+}
+if (portalPacientes) {
+  document.getElementById('privacidad-responsable').textContent = privacidad.responsable;
+  document.getElementById('privacidad-domicilio').textContent = privacidad.domicilio;
+  document.getElementById('privacidad-contacto').href = 'mailto:' + privacidad.correo;
+  document.getElementById('privacidad').hidden = false;
 }
 const entrar = document.getElementById('entrar-google');
 const salir = document.getElementById('salir-google');
