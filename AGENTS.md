@@ -23,3 +23,5 @@ The local demo may store the fictional amount and folio only.
 Demo payment selections are local only.
 
 Keep public intake writes and Google profile reads constrained by Firestore rules.
+
+Keep the visible profile opt-in next to its checkbox.

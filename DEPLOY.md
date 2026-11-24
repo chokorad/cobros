@@ -23,3 +23,5 @@ The private shell cache and version label now use v18.
 The app shell now uses v19 and the portal script uses v5.
 
 Enable Anonymous Authentication and Google Authentication, authorize the portal domain, deploy firestore:rules, and test App Check and access rules on Spark before enabling nubeActiva. This flow does not deploy Cloud Functions.
+
+The opt-in layout uses portal.css v3.

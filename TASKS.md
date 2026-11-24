@@ -24,3 +24,5 @@ Carry the requested amount into the private intake queue when live submission is
 Carry the reported payment option into the private queue for verification.
 
 Verify App Check and rules in a Firebase test project before enabling the intake switch.
+
+Verify profile recall on a separate device before enabling general intake.

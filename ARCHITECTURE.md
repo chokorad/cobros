@@ -25,3 +25,5 @@ The local demo record is now JSON with folio and integer montoCentavos. Previous
 Demo JSON optionally includes pago, a fixed payment-option identifier.
 
 Spark intake writes validated requests directly to Firestore using Firebase Authentication. Guest sessions use anonymous authentication. Verified Google users may store six fiscal fields under their own UID. Staff cannot browse profiles through client rules.
+
+The profile opt-in remains an unchecked native checkbox in the Google section.

@@ -103,3 +103,5 @@ Enter a fictional amount in MXN and check it beside the folio in Facturas.
 Select the payment option when testing an invoice request.
 
 Cloud intake remains disabled by default. Google sign-in and guest intake are available in the cloud configuration.
+
+After signing in, optionally check the box to remember fiscal data.

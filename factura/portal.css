@@ -80,3 +80,21 @@ button:hover { background: #1c4979; }
 #resultado { color: #143f69; margin: 0; }
 
 @media (max-width: 480px) { form { grid-template-columns: minmax(0, 1fr); } }
+
+#recordar-perfil {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  margin-top: .8rem;
+  cursor: pointer;
+}
+#recordar-perfil input {
+  appearance: auto;
+  accent-color: #103258;
+  width: 1.2rem;
+  height: 1.2rem;
+  min-height: 0;
+  flex: none;
+  padding: 0;
+  margin: 0;
+}
