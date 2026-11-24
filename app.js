@@ -1,4 +1,4 @@
-import { nubeActiva } from './factura/envio.js';
+import { nubeActiva } from './factura/envio.js?v=20';
 import { firebaseConfig, MODELO, CORREOS_PERMITIDOS, LADA_DEFAULT, RECAPTCHA_KEY } from './config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserPopupRedirectResolver,

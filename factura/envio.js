@@ -1,4 +1,4 @@
-export const nubeActiva = false;
+export const nubeActiva = true;
 
 let cliente;
 async function conectar() {

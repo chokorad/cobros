@@ -1,4 +1,6 @@
-import { nubeActiva, enviarSolicitud, entrarConGoogle, salirDelPerfil } from './envio.js';
+import { nubeActiva as firebaseActivo, enviarSolicitud, entrarConGoogle, salirDelPerfil } from './envio.js?v=20';
+
+const nubeActiva = firebaseActivo && new URLSearchParams(location.search).get('piloto') === '1';
 'use strict';
 
 // Public branding only. Keep credentials and billing data outside this file.
@@ -83,7 +85,7 @@ rfc.addEventListener('invalid', mostrarErrorRfc);
 formulario.addEventListener('submit', (event) => event.preventDefault());
 let clave;
 if (nubeActiva) {
-  document.getElementById('aviso').textContent = 'Recibirás un folio al enviar la solicitud.';
+  document.getElementById('aviso').textContent = 'Prueba en la nube. Usa únicamente datos ficticios.';
   boton.textContent = 'Enviar solicitud';
 }
 const entrar = document.getElementById('entrar-google');
