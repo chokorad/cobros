@@ -20,13 +20,21 @@ async function conectar() {
   return { auth, authSdk, firestore, db: firestore.getFirestore(app) };
 }
 function obtenerCliente() {
-  cliente ??= conectar();
+  cliente ??= conectar().catch((error) => {
+    cliente = undefined;
+    throw error;
+  });
   return cliente;
 }
 
-export async function entrarConGoogle() {
+export function prepararGoogle() {
+  return obtenerCliente();
+}
+
+export async function entrarConGoogle(alCargarPerfil) {
   const { auth, authSdk, firestore, db } = await obtenerCliente();
   const { user } = await authSdk.signInWithPopup(auth, new authSdk.GoogleAuthProvider());
+  alCargarPerfil();
   const perfil = await firestore.getDocFromServer(firestore.doc(db, 'perfilesFiscales', user.uid));
   return { correo: user.email, perfil: perfil.data() };
 }

@@ -29,3 +29,5 @@ The invoice preview requires the reported form of payment and displays it beside
 Email-first form, optional Google account and optional profile retention. Amount and payment are captured for every request.
 
 Google sign-in reveals a clearly labeled fiscal profile opt-in.
+
+Google sign-in has an immediate activity indicator, a prompt during longer waits, and a fiscal profile lookup message.

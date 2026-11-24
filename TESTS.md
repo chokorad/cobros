@@ -29,3 +29,5 @@ Verify a missing payment selection blocks the demo and older entries still rende
 Verify guest submission, Google reload, UID isolation, blocked anonymous reads, invalid submissions, and owner linking using synthetic data.
 
 After signing in, verify the opt-in is legible, initially unchecked and toggles when its text is tapped.
+
+In the pilot, verify immediate Google feedback, profile lookup status, and retry or manual entry after closing the popup.

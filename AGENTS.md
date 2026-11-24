@@ -25,3 +25,5 @@ Demo payment selections are local only.
 Keep public intake writes and Google profile reads constrained by Firestore rules.
 
 Keep the visible profile opt-in next to its checkbox.
+
+Keep sign-in status next to the Google control and preserve the manual intake path on failure.

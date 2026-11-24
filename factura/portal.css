@@ -98,3 +98,25 @@ button:hover { background: #1c4979; }
   padding: 0;
   margin: 0;
 }
+
+#estado-google {
+  color: #143f69;
+  margin: .55rem 0 0;
+}
+#estado-google:empty { margin: 0; }
+#estado-google[data-cargando]::before {
+  content: "";
+  display: inline-block;
+  width: .85em;
+  height: .85em;
+  margin-right: .5em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -.1em;
+  animation: giro-google .8s linear infinite;
+}
+@keyframes giro-google { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #estado-google[data-cargando]::before { animation: none; }
+}

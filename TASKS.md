@@ -26,3 +26,5 @@ Carry the reported payment option into the private queue for verification.
 Verify App Check and rules in a Firebase test project before enabling the intake switch.
 
 Verify profile recall on a separate device before enabling general intake.
+
+Recheck pilot sign-in on mobile with slow connectivity after publishing updates.

@@ -25,3 +25,5 @@ The app shell now uses v19 and the portal script uses v5.
 Enable Anonymous Authentication and Google Authentication, authorize the portal domain, deploy firestore:rules, and test App Check and access rules on Spark before enabling nubeActiva. This flow does not deploy Cloud Functions.
 
 The opt-in layout uses portal.css v3.
+
+When deploying sign-in UI changes, bump the versioned portal assets and verify the pilot URL.

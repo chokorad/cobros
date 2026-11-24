@@ -1,4 +1,4 @@
-import { nubeActiva as firebaseActivo, enviarSolicitud, entrarConGoogle, salirDelPerfil } from './envio.js?v=20';
+import { nubeActiva as firebaseActivo, enviarSolicitud, entrarConGoogle, prepararGoogle, salirDelPerfil } from './envio.js?v=21';
 
 const nubeActiva = firebaseActivo && new URLSearchParams(location.search).get('piloto') === '1';
 'use strict';
@@ -91,12 +91,25 @@ if (nubeActiva) {
 const entrar = document.getElementById('entrar-google');
 const salir = document.getElementById('salir-google');
 const recordar = document.getElementById('recordar-perfil');
-if (nubeActiva) document.getElementById('perfil-google').hidden = false;
+const estadoGoogle = document.getElementById('estado-google');
+if (nubeActiva) {
+  document.getElementById('perfil-google').hidden = false;
+  prepararGoogle().catch(() => {});
+}
 entrar.onclick = async () => {
+  if (boton.disabled) return;
   entrar.disabled = true;
   boton.disabled = true;
+  estadoGoogle.dataset.cargando = 'true';
+  estadoGoogle.textContent = 'Conectando con Google…';
+  const avisoEspera = setTimeout(() => {
+    estadoGoogle.textContent = 'Completa el inicio de sesión en la ventana de Google si ya se abrió.';
+  }, 5000);
   try {
-    const { correo, perfil } = await entrarConGoogle();
+    const { correo, perfil } = await entrarConGoogle(() => {
+      clearTimeout(avisoEspera);
+      estadoGoogle.textContent = 'Buscando tus datos fiscales guardados…';
+    });
     formulario.elements.namedItem('correo').value = correo || '';
     for (const campo of ['rfc', 'nombre', 'cp', 'direccion', 'regimen', 'uso']) {
       if (perfil) formulario.elements.namedItem(campo).value = perfil[campo] || '';
@@ -107,16 +120,23 @@ entrar.onclick = async () => {
     recordar.hidden = false;
     resultado.hidden = true;
     clave = undefined;
-  } catch {
-    resultado.textContent = 'No se pudieron cargar los datos de Google.';
-    resultado.hidden = false;
+    estadoGoogle.textContent = perfil ? 'Tus datos fiscales se cargaron.' : 'Sesión iniciada. Puedes capturar tus datos fiscales.';
+  } catch (error) {
+    estadoGoogle.textContent = error?.code === 'auth/popup-blocked'
+      ? 'El navegador bloqueó la ventana de Google. Permite las ventanas emergentes y vuelve a intentarlo.'
+      : error?.code === 'auth/popup-closed-by-user'
+        ? 'Se cerró la ventana de Google. Puedes volver a intentarlo.'
+        : 'Hubo un problema al conectar con Google o cargar tus datos. Reintenta o llena el formulario.';
   } finally {
+    clearTimeout(avisoEspera);
+    delete estadoGoogle.dataset.cargando;
     entrar.disabled = false;
     boton.disabled = false;
   }
 };
 salir.onclick = async () => {
   await salirDelPerfil();
+  estadoGoogle.textContent = '';
   formulario.reset();
   clave = undefined;
   resultado.hidden = true;
